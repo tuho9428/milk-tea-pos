@@ -26,6 +26,7 @@ model MenuItem {
   name        String
   slug        String          @unique
   description String?
+  tags        String[]        @default([])
   basePrice   Decimal         @db.Decimal(10, 2)
   imageUrl    String?
   isActive    Boolean         @default(true)

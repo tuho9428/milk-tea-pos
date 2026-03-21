@@ -1,39 +1,53 @@
 import Link from "next/link";
-import { formatPrice, mockDrinks } from "@/lib/mock-drinks";
+import { formatPrice } from "@/lib/format";
+import { prisma } from "@/lib/prisma";
 
-const cartItems = [
-  {
-    slug: "brown-sugar-boba-milk-tea",
-    quantity: 1,
-    unitPrice: 6.25,
-    modifiers: ["Large", "Boba"],
-  },
-  {
-    slug: "sea-salt-coffee",
-    quantity: 2,
-    unitPrice: 5.5,
-    modifiers: ["Less Ice"],
-  },
-];
+const sampleQuantities: Record<string, number> = {
+  "brown-sugar-boba-milk-tea": 1,
+  "sea-salt-coffee": 2,
+};
 
-const cartRows = cartItems
-  .map((item) => {
-    const drink = mockDrinks.find((d) => d.slug === item.slug);
-    return { ...item, drink };
-  })
-  .filter(
-    (row): row is (typeof row & { drink: NonNullable<typeof row.drink> }) =>
-      row.drink !== undefined,
-  );
+export default async function CartPage() {
+  let drinks = await prisma.menuItem.findMany({
+    where: {
+      slug: { in: Object.keys(sampleQuantities) },
+    },
+    select: {
+      id: true,
+      slug: true,
+      name: true,
+      basePrice: true,
+      isSoldOut: true,
+      isActive: true,
+    },
+  });
 
-const subtotal = cartRows.reduce(
-  (sum, row) => sum + row.quantity * row.unitPrice,
-  0,
-);
-const serviceFee = 0.5;
-const total = subtotal + serviceFee;
+  if (drinks.length === 0) {
+    drinks = await prisma.menuItem.findMany({
+      where: { isActive: true },
+      select: {
+        id: true,
+        slug: true,
+        name: true,
+        basePrice: true,
+        isSoldOut: true,
+        isActive: true,
+      },
+      orderBy: { name: "asc" },
+      take: 2,
+    });
+  }
 
-export default function CartPage() {
+  const rows = drinks.map((drink) => ({
+    ...drink,
+    quantity: sampleQuantities[drink.slug] ?? 1,
+    unitPrice: Number(drink.basePrice),
+  }));
+
+  const subtotal = rows.reduce((sum, row) => sum + row.quantity * row.unitPrice, 0);
+  const serviceFee = rows.length > 0 ? 0.5 : 0;
+  const total = subtotal + serviceFee;
+
   return (
     <main className="min-h-screen bg-stone-100 px-6 py-10">
       <div className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-3">
@@ -45,41 +59,41 @@ export default function CartPage() {
             </Link>
           </header>
 
-          <div className="space-y-4">
-            {cartRows.map((row) => (
-              <article
-                key={row.slug}
-                className="rounded-xl border border-stone-200 bg-white p-5"
-              >
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <h2 className="text-lg font-semibold text-stone-900">{row.drink.name}</h2>
-                    <p className="mt-1 text-sm text-stone-600">
-                      {row.modifiers.join(" • ")}
+          {rows.length === 0 ? (
+            <div className="rounded-xl border border-stone-200 bg-white p-5 text-stone-600">
+              No sample cart items found in DB yet.
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {rows.map((row) => (
+                <article
+                  key={row.id}
+                  className="rounded-xl border border-stone-200 bg-white p-5"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <h2 className="text-lg font-semibold text-stone-900">{row.name}</h2>
+                      <p className="mt-1 text-sm text-stone-600">
+                        {row.isSoldOut || !row.isActive ? "Sold Out" : "Available"}
+                      </p>
+                    </div>
+                    <p className="text-sm font-semibold text-stone-700">
+                      {formatPrice(row.unitPrice)}
                     </p>
                   </div>
-                  <p className="text-sm font-semibold text-stone-700">
-                    {formatPrice(row.unitPrice)}
-                  </p>
-                </div>
 
-                <div className="mt-4 flex items-center justify-between">
-                  <div className="inline-flex items-center gap-3 rounded-lg border border-stone-300 px-3 py-1">
-                    <button type="button" className="text-stone-700">
-                      -
-                    </button>
-                    <span className="font-medium text-stone-900">{row.quantity}</span>
-                    <button type="button" className="text-stone-700">
-                      +
-                    </button>
+                  <div className="mt-4 flex items-center justify-between">
+                    <div className="inline-flex items-center gap-3 rounded-lg border border-stone-300 px-3 py-1">
+                      <span className="font-medium text-stone-900">{row.quantity}</span>
+                    </div>
+                    <p className="text-lg font-bold text-stone-900">
+                      {formatPrice(row.unitPrice * row.quantity)}
+                    </p>
                   </div>
-                  <p className="text-lg font-bold text-stone-900">
-                    {formatPrice(row.unitPrice * row.quantity)}
-                  </p>
-                </div>
-              </article>
-            ))}
-          </div>
+                </article>
+              ))}
+            </div>
+          )}
         </section>
 
         <aside className="h-fit rounded-xl border border-stone-200 bg-white p-5">

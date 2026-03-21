@@ -1,22 +1,31 @@
 import Link from "next/link";
-import { formatPrice } from "@/lib/mock-drinks";
+import { formatPrice } from "@/lib/format";
+import { prisma } from "@/lib/prisma";
 
-const summaryItems = [
-  { name: "Brown Sugar Boba Milk Tea", qty: 1, price: 6.25 },
-  { name: "Sea Salt Coffee", qty: 2, price: 5.5 },
-];
+export default async function CheckoutPage() {
+  const summaryItems = await prisma.menuItem.findMany({
+    where: {
+      isActive: true,
+    },
+    select: {
+      id: true,
+      name: true,
+      basePrice: true,
+    },
+    take: 2,
+    orderBy: { createdAt: "asc" },
+  });
 
-const subtotal = summaryItems.reduce((sum, item) => sum + item.qty * item.price, 0);
-const serviceFee = 0.5;
-const total = subtotal + serviceFee;
+  const subtotal = summaryItems.reduce((sum, item) => sum + Number(item.basePrice), 0);
+  const serviceFee = summaryItems.length > 0 ? 0.5 : 0;
+  const total = subtotal + serviceFee;
 
-export default function CheckoutPage() {
   return (
     <main className="min-h-screen bg-gradient-to-br from-amber-100 via-orange-100 to-stone-100 px-6 py-10">
       <div className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-3">
         <section className="rounded-xl border border-stone-200 bg-white p-6 lg:col-span-2">
           <h1 className="text-3xl font-bold text-stone-900">Checkout</h1>
-          <p className="mt-1 text-stone-600">Static UI only. No payment integration yet.</p>
+          <p className="mt-1 text-stone-600">Order summary now loaded from Prisma data.</p>
 
           <form className="mt-6 grid gap-4 sm:grid-cols-2">
             <label className="flex flex-col gap-1 text-sm">
@@ -61,12 +70,10 @@ export default function CheckoutPage() {
           <h2 className="text-lg font-semibold text-stone-900">Order Summary</h2>
           <ul className="mt-4 space-y-3">
             {summaryItems.map((item) => (
-              <li key={item.name} className="flex items-center justify-between text-sm">
-                <span className="text-stone-700">
-                  {item.qty} x {item.name}
-                </span>
+              <li key={item.id} className="flex items-center justify-between text-sm">
+                <span className="text-stone-700">1 x {item.name}</span>
                 <span className="font-medium text-stone-900">
-                  {formatPrice(item.qty * item.price)}
+                  {formatPrice(Number(item.basePrice))}
                 </span>
               </li>
             ))}
