@@ -2,7 +2,7 @@ import { PrismaClient } from "@/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 
 const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined;
+  __prisma: PrismaClient | undefined;
 };
 
 const connectionString = process.env.DATABASE_URL;
@@ -13,8 +13,15 @@ if (!connectionString) {
 
 const adapter = new PrismaPg({ connectionString });
 
-export const prisma = globalForPrisma.prisma ?? new PrismaClient({ adapter });
+const hasExpectedDelegates =
+  !!globalForPrisma.__prisma &&
+  "menuItem" in globalForPrisma.__prisma &&
+  "category" in globalForPrisma.__prisma;
+
+export const prisma = hasExpectedDelegates
+  ? globalForPrisma.__prisma
+  : new PrismaClient({ adapter });
 
 if (process.env.NODE_ENV !== "production") {
-  globalForPrisma.prisma = prisma;
+  globalForPrisma.__prisma = prisma;
 }
