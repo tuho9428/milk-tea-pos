@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { prisma } from "@/lib/prisma";
-import { formatPrice } from "@/lib/format";
+import { prisma } from "lib/prisma";
+import { formatPrice } from "lib/format";
 
 export default async function MenuPage() {
   const drinks = await prisma.menuItem.findMany({

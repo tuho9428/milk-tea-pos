@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
-import { prisma } from "@/lib/prisma";
-import { formatPrice } from "@/lib/format";
+import { prisma } from "lib/prisma";
+import { formatPrice } from "lib/format";
 
 function toSlug(value: string) {
   return value

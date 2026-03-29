@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { formatPrice } from "@/lib/format";
-import { prisma } from "@/lib/prisma";
+import { formatPrice } from "lib/format";
+import { prisma } from "lib/prisma";
 
 type DrinkDetailPageProps = {
   params: Promise<{ slug: string }>;

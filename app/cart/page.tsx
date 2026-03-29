@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { formatPrice } from "@/lib/format";
-import { prisma } from "@/lib/prisma";
+import { formatPrice } from "lib/format";
+import { prisma } from "lib/prisma";
 
 const sampleQuantities: Record<string, number> = {
   "brown-sugar-boba-milk-tea": 1,
