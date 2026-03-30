@@ -184,18 +184,26 @@ export default async function AdminOrdersPage() {
                   {orders.map((order) => (
                     <TableRow key={order.id} className="hover:bg-stone-50/80">
                       <TableCell>
-                        <div className="space-y-2">
-                          <p className="font-mono text-xs text-stone-500">{order.id}</p>
-                          <div>
-                            <p className="text-sm font-medium text-stone-900">
-                              {order.customerName}
+                        <Link
+                          href={`/admin/orders/${order.id}`}
+                          className="block rounded-lg p-1 transition-colors hover:bg-stone-100"
+                        >
+                          <div className="space-y-2">
+                            <p className="font-mono text-xs text-stone-500">{order.id}</p>
+                            <div>
+                              <p className="text-sm font-medium text-stone-900">
+                                {order.customerName}
+                              </p>
+                              <p className="text-sm text-stone-500">{order.phone}</p>
+                            </div>
+                            <p className="text-xs text-stone-500">
+                              {order.notes?.trim() || "No notes provided."}
                             </p>
-                            <p className="text-sm text-stone-500">{order.phone}</p>
+                            <p className="text-xs font-medium text-stone-600">
+                              View details
+                            </p>
                           </div>
-                          <p className="text-xs text-stone-500">
-                            {order.notes?.trim() || "No notes provided."}
-                          </p>
-                        </div>
+                        </Link>
                       </TableCell>
                       <TableCell>
                         <div className="space-y-1">
