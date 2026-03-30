@@ -45,65 +45,54 @@ export default async function MenuPage() {
             const soldOut = drink.isSoldOut || !drink.isActive;
 
             return (
-              <article
+              <Link
                 key={drink.id}
-                className="group rounded-2xl border border-stone-200 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:shadow-md"
+                href={`/menu/${drink.slug}`}
+                className="group block rounded-2xl border border-stone-200 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:border-amber-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-2 focus-visible:ring-offset-amber-50"
               >
-                <div className="mb-4 flex items-center justify-between">
-                  <span className="rounded-full bg-stone-100 px-3 py-1 text-xs font-semibold text-stone-700">
-                    {drink.category.name}
-                  </span>
-                  <span className="text-lg font-bold text-stone-900">
-                    {formatPrice(price)}
-                  </span>
-                </div>
-
-                <h2 className="text-xl font-semibold text-stone-900">{drink.name}</h2>
-                <p className="mt-2 text-sm leading-6 text-stone-600">
-                  {drink.description ?? "No description yet."}
-                </p>
-
-                {drink.tags.length > 0 ? (
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {drink.tags.map((tag) => (
-                      <span
-                        key={tag}
-                        className="rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-900"
-                      >
-                        {tag}
-                      </span>
-                    ))}
+                <article>
+                  <div className="mb-4 flex items-center justify-between">
+                    <span className="rounded-full bg-stone-100 px-3 py-1 text-xs font-semibold text-stone-700">
+                      {drink.category.name}
+                    </span>
+                    <span className="text-lg font-bold text-stone-900">
+                      {formatPrice(price)}
+                    </span>
                   </div>
-                ) : null}
 
-                <div className="mt-4">
-                  {soldOut ? (
-                    <span className="rounded-full bg-red-100 px-3 py-1 text-xs font-semibold text-red-700">
-                      Sold Out
-                    </span>
-                  ) : (
-                    <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
-                      Available
-                    </span>
-                  )}
-                </div>
+                  <h2 className="text-xl font-semibold text-stone-900 transition-colors group-hover:text-amber-800 group-focus-visible:text-amber-800">
+                    {drink.name}
+                  </h2>
+                  <p className="mt-2 text-sm leading-6 text-stone-600">
+                    {drink.description ?? "No description yet."}
+                  </p>
 
-                <div className="mt-5 flex gap-2">
-                  <Link
-                    href={`/menu/${drink.slug}`}
-                    className="rounded-lg border border-stone-300 px-3 py-2 text-sm font-medium text-stone-900 hover:bg-stone-100"
-                  >
-                    View Details
-                  </Link>
-                  <button
-                    type="button"
-                    disabled={soldOut}
-                    className="rounded-lg bg-stone-900 px-3 py-2 text-sm font-medium text-white hover:bg-stone-700 disabled:cursor-not-allowed disabled:bg-stone-300"
-                  >
-                    Add to Cart
-                  </button>
-                </div>
-              </article>
+                  {drink.tags.length > 0 ? (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {drink.tags.map((tag) => (
+                        <span
+                          key={tag}
+                          className="rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-900"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
+
+                  <div className="mt-4">
+                    {soldOut ? (
+                      <span className="rounded-full bg-red-100 px-3 py-1 text-xs font-semibold text-red-700">
+                        Sold Out
+                      </span>
+                    ) : (
+                      <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
+                        Available
+                      </span>
+                    )}
+                  </div>
+                </article>
+              </Link>
             );
           })}
         </section>
