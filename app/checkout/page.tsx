@@ -24,7 +24,7 @@ export default async function CheckoutPage() {
               <input
                 name="customerName"
                 required
-                className="rounded-lg border border-stone-300 px-3 py-2 outline-none ring-amber-300 focus:ring-2"
+                className="rounded-lg border border-stone-300 px-3 py-2 text-stone-900 outline-none placeholder:text-stone-400 ring-amber-300 focus:ring-2"
                 placeholder="John Doe"
               />
             </label>
@@ -33,7 +33,7 @@ export default async function CheckoutPage() {
               <input
                 name="phone"
                 required
-                className="rounded-lg border border-stone-300 px-3 py-2 outline-none ring-amber-300 focus:ring-2"
+                className="rounded-lg border border-stone-300 px-3 py-2 text-stone-900 outline-none placeholder:text-stone-400 ring-amber-300 focus:ring-2"
                 placeholder="(555) 123-4567"
               />
             </label>
@@ -41,7 +41,7 @@ export default async function CheckoutPage() {
               <span className="font-medium text-stone-700">Pickup Notes</span>
               <textarea
                 name="notes"
-                className="min-h-28 rounded-lg border border-stone-300 px-3 py-2 outline-none ring-amber-300 focus:ring-2"
+                className="min-h-28 rounded-lg border border-stone-300 px-3 py-2 text-stone-900 outline-none placeholder:text-stone-400 ring-amber-300 focus:ring-2"
                 placeholder="Less sugar for all drinks, please."
               />
             </label>
