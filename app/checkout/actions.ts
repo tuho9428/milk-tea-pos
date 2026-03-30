@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import { calculateCartSubtotal, type CartItem } from "@/lib/cart";
 import { prisma } from "@/lib/prisma";
+import { getStoreTaxRate } from "@/lib/store-settings";
 import { calculateOrderPricing } from "@/lib/tax";
 
 const checkoutSchema = z.object({
@@ -81,7 +82,8 @@ export async function createOrderAction(formData: FormData) {
       }
     }
 
-    const pricing = calculateOrderPricing(calculateCartSubtotal(cartItems));
+    const taxRate = await getStoreTaxRate();
+    const pricing = calculateOrderPricing(calculateCartSubtotal(cartItems), taxRate);
 
     const order = await tx.order.create({
       data: {

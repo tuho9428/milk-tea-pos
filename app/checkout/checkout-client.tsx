@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useSyncExternalStore } from "react";
+import { useRouter } from "next/navigation";
 
 import { createOrderAction } from "@/app/checkout/actions";
 import { Button } from "@/components/ui/button";
@@ -19,13 +20,30 @@ import { getStoredCart, subscribeToStoredCart } from "@/lib/cart-storage";
 import { formatPrice } from "@/lib/format";
 import { calculateOrderPricing } from "@/lib/tax";
 
-export function CheckoutClient() {
+type CheckoutClientProps = {
+  taxRate: number;
+};
+
+export function CheckoutClient({ taxRate }: CheckoutClientProps) {
+  const router = useRouter();
   const cartItems = useSyncExternalStore(subscribeToStoredCart, getStoredCart, () => []);
 
   const pricing = useMemo(
-    () => calculateOrderPricing(calculateCartSubtotal(cartItems)),
-    [cartItems],
+    () => calculateOrderPricing(calculateCartSubtotal(cartItems), taxRate),
+    [cartItems, taxRate],
   );
+
+  useEffect(() => {
+    const handlePageShow = () => {
+      router.refresh();
+    };
+
+    window.addEventListener("pageshow", handlePageShow);
+
+    return () => {
+      window.removeEventListener("pageshow", handlePageShow);
+    };
+  }, [router]);
 
   return (
     <div className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-3">

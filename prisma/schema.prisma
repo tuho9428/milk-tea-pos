@@ -12,6 +12,14 @@ datasource db {
   provider = "postgresql"
 }
 
+model StoreSettings {
+  id        String   @id
+  storeName String?
+  taxRate   Decimal  @db.Decimal(5, 4)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 model Category {
   id        String     @id @default(cuid())
   name      String

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { ComponentProps } from "react";
 
+import { updateOrderStatusAction } from "@/app/admin/orders/actions";
 import {
   Card,
   CardContent,
@@ -12,6 +13,8 @@ import {
 import { formatPrice, formatTaxRate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { cn } from "@/lib/utils";
+
+const editableStatuses = ["PENDING", "MAKING", "READY", "COMPLETED", "CANCELED"] as const;
 
 const statusStyles = {
   PENDING: "bg-amber-300/20 text-amber-200 ring-1 ring-amber-400/30",
@@ -141,10 +144,31 @@ export default async function AdminOrderDetailPage({
                 <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">
                   Status
                 </p>
-                <div className="mt-1">
+                <div className="mt-1 flex flex-wrap items-center gap-3">
                   <Badge className={statusStyles[order.status]}>
                     {formatStatusLabel(order.status)}
                   </Badge>
+                  <form action={updateOrderStatusAction} className="flex flex-wrap items-center gap-2">
+                    <input type="hidden" name="orderId" value={order.id} />
+                    <select
+                      name="status"
+                      defaultValue={editableStatuses.includes(order.status) ? order.status : "PENDING"}
+                      className="rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900"
+                      aria-label="Update order status"
+                    >
+                      {editableStatuses.map((status) => (
+                        <option key={status} value={status}>
+                          {formatStatusLabel(status)}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="submit"
+                      className="rounded-lg bg-stone-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-stone-700"
+                    >
+                      Update
+                    </button>
+                  </form>
                 </div>
               </div>
               <div className="rounded-xl border border-stone-200 bg-stone-50 p-4">
