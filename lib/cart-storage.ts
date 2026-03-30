@@ -3,6 +3,9 @@ import type { CartItem } from "@/lib/cart";
 const CART_STORAGE_KEY = "milk-tea-pos-cart";
 const CART_STORAGE_EVENT = "milk-tea-pos-cart-updated";
 
+let cachedRawValue: string | null | undefined;
+let cachedCart: CartItem[] = [];
+
 export function getStoredCart(): CartItem[] {
   if (typeof window === "undefined") {
     return [];
@@ -10,7 +13,13 @@ export function getStoredCart(): CartItem[] {
 
   const rawValue = window.localStorage.getItem(CART_STORAGE_KEY);
 
+  if (rawValue === cachedRawValue) {
+    return cachedCart;
+  }
+
   if (!rawValue) {
+    cachedRawValue = rawValue;
+    cachedCart = [];
     return [];
   }
 
@@ -18,11 +27,17 @@ export function getStoredCart(): CartItem[] {
     const parsed = JSON.parse(rawValue) as unknown;
 
     if (!Array.isArray(parsed)) {
+      cachedRawValue = rawValue;
+      cachedCart = [];
       return [];
     }
 
-    return parsed.filter(isCartItem);
+    cachedRawValue = rawValue;
+    cachedCart = parsed.filter(isCartItem);
+    return cachedCart;
   } catch {
+    cachedRawValue = rawValue;
+    cachedCart = [];
     return [];
   }
 }
