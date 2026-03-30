@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+
+import { AddToCartForm } from "@/app/menu/[slug]/add-to-cart-form";
 import { formatPrice } from "lib/format";
 import { prisma } from "lib/prisma";
 
@@ -26,6 +28,17 @@ export default async function DrinkDetailPage({ params }: DrinkDetailPageProps) 
   }
 
   const soldOut = drink.isSoldOut || !drink.isActive;
+  const serializedGroups = drink.groups.map((group) => ({
+    id: group.id,
+    name: group.name,
+    required: group.required,
+    multiSelect: group.multiSelect,
+    options: group.options.map((option) => ({
+      id: option.id,
+      name: option.name,
+      priceDelta: Number(option.priceDelta),
+    })),
+  }));
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-stone-950 via-stone-900 to-black px-6 py-10 text-stone-100">
@@ -82,39 +95,15 @@ export default async function DrinkDetailPage({ params }: DrinkDetailPageProps) 
             </div>
           </div>
 
-          <div className="mt-6 grid gap-4 md:grid-cols-2">
-            {drink.groups.map((group) => (
-              <div
-                key={group.id}
-                className="rounded-xl border border-stone-700 bg-stone-950 p-4"
-              >
-                <h2 className="font-semibold text-white">{group.name}</h2>
-                <ul className="mt-2 space-y-2 text-sm text-stone-300">
-                  {group.options.map((option) => (
-                    <li key={option.id}>
-                      {option.name} ({formatPrice(Number(option.priceDelta))})
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-8 flex flex-wrap gap-3">
-            <button
-              type="button"
-              disabled={soldOut}
-              className="rounded-lg bg-amber-300 px-5 py-3 font-semibold text-stone-900 hover:bg-amber-200 disabled:cursor-not-allowed disabled:bg-stone-500 disabled:text-stone-200"
-            >
-              Add to Cart
-            </button>
-            <Link
-              href="/cart"
-              className="rounded-lg border border-stone-600 px-5 py-3 font-semibold text-stone-100 hover:bg-stone-800"
-            >
-              Go to Cart
-            </Link>
-          </div>
+          <AddToCartForm
+            menuItem={{
+              menuItemId: drink.id,
+              name: drink.name,
+              basePrice: Number(drink.basePrice),
+            }}
+            groups={serializedGroups}
+            soldOut={soldOut}
+          />
         </section>
       </div>
     </main>

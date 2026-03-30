@@ -1,15 +1,7 @@
+import type { CartItem } from "@/lib/cart";
 import { prisma } from "@/lib/prisma";
 
-export type CartItem = {
-  menuItemId: string;
-  name: string;
-  quantity: number;
-  basePrice: number;
-  selectedModifiers: {
-    name: string;
-    priceDelta: number;
-  }[];
-};
+export { calculateCartSubtotal } from "@/lib/cart";
 
 const sampleCartBySlug: Record<
   string,
@@ -73,15 +65,4 @@ export async function getMockCart(): Promise<CartItem[]> {
       selectedModifiers: sample?.selectedModifiers ?? [],
     };
   });
-}
-
-export function calculateCartSubtotal(cartItems: CartItem[]) {
-  return cartItems.reduce((sum, item) => {
-    const modifierTotal = item.selectedModifiers.reduce(
-      (modifierSum, modifier) => modifierSum + modifier.priceDelta,
-      0,
-    );
-
-    return sum + item.quantity * (item.basePrice + modifierTotal);
-  }, 0);
 }
