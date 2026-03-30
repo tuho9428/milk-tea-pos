@@ -11,13 +11,24 @@ export type CartItem = {
   selectedModifiers: SelectedModifier[];
 };
 
-export function calculateCartSubtotal(cartItems: CartItem[]) {
-  return cartItems.reduce((sum, item) => {
-    const modifierTotal = item.selectedModifiers.reduce(
+export function calculateCartLineUnitPrice(cartItem: CartItem) {
+  return (
+    cartItem.basePrice +
+    cartItem.selectedModifiers.reduce(
       (modifierSum, modifier) => modifierSum + modifier.priceDelta,
       0,
-    );
+    )
+  );
+}
 
-    return sum + item.quantity * (item.basePrice + modifierTotal);
-  }, 0);
+export function calculateCartLineTotal(cartItem: CartItem) {
+  return cartItem.quantity * calculateCartLineUnitPrice(cartItem);
+}
+
+export function calculateCartSubtotal(cartItems: CartItem[]) {
+  return cartItems.reduce((sum, item) => sum + calculateCartLineTotal(item), 0);
+}
+
+export function getCartItemCount(cartItems: CartItem[]) {
+  return cartItems.reduce((sum, item) => sum + item.quantity, 0);
 }

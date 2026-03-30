@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import type { CartItem } from "@/lib/cart";
 import { calculateCartSubtotal } from "@/lib/cart";
-import { getStoredCart, subscribeToStoredCart } from "@/lib/cart-storage";
+import { getStoredCart, hasStoredCart, subscribeToStoredCart } from "@/lib/cart-storage";
 import { formatPrice } from "@/lib/format";
 import { calculateOrderPricing } from "@/lib/tax";
 
@@ -28,8 +28,11 @@ export function CheckoutClient({ initialCartItems }: CheckoutClientProps) {
   const cartItems = useSyncExternalStore(
     subscribeToStoredCart,
     () => {
-      const storedCart = getStoredCart();
-      return storedCart.length > 0 ? storedCart : initialCartItems;
+      if (!hasStoredCart()) {
+        return initialCartItems;
+      }
+
+      return getStoredCart();
     },
     () => initialCartItems,
   );

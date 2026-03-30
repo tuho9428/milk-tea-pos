@@ -42,14 +42,20 @@ export function getStoredCart(): CartItem[] {
   }
 }
 
+export function hasStoredCart() {
+  if (typeof window === "undefined") {
+    return false;
+  }
+
+  return window.localStorage.getItem(CART_STORAGE_KEY) !== null;
+}
+
 export function addToStoredCart(item: CartItem) {
   if (typeof window === "undefined") {
     return;
   }
 
-  const nextCart = [...getStoredCart(), item];
-  window.localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(nextCart));
-  window.dispatchEvent(new Event(CART_STORAGE_EVENT));
+  setStoredCart([...getStoredCart(), item]);
 }
 
 export function clearStoredCart() {
@@ -61,6 +67,44 @@ export function clearStoredCart() {
   cachedRawValue = null;
   cachedCart = [];
   window.dispatchEvent(new Event(CART_STORAGE_EVENT));
+}
+
+export function updateStoredCartItemQuantity(index: number, quantity: number) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const currentCart = getStoredCart();
+
+  if (index < 0 || index >= currentCart.length) {
+    return;
+  }
+
+  if (quantity <= 0) {
+    removeStoredCartItem(index);
+    return;
+  }
+
+  const nextCart = currentCart.map((item, currentIndex) =>
+    currentIndex === index ? { ...item, quantity } : item,
+  );
+
+  setStoredCart(nextCart);
+}
+
+export function removeStoredCartItem(index: number) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const currentCart = getStoredCart();
+
+  if (index < 0 || index >= currentCart.length) {
+    return;
+  }
+
+  const nextCart = currentCart.filter((_, currentIndex) => currentIndex !== index);
+  setStoredCart(nextCart);
 }
 
 export function subscribeToStoredCart(callback: () => void) {
@@ -93,4 +137,12 @@ function isCartItem(value: unknown): value is CartItem {
     typeof item.basePrice === "number" &&
     Array.isArray(item.selectedModifiers)
   );
+}
+
+function setStoredCart(cartItems: CartItem[]) {
+  const nextRawValue = JSON.stringify(cartItems);
+  window.localStorage.setItem(CART_STORAGE_KEY, nextRawValue);
+  cachedRawValue = nextRawValue;
+  cachedCart = cartItems;
+  window.dispatchEvent(new Event(CART_STORAGE_EVENT));
 }

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { MenuCartActions } from "@/app/menu/menu-cart-actions";
 import { prisma } from "lib/prisma";
 import { formatPrice } from "lib/format";
 
@@ -22,20 +23,7 @@ export default async function MenuPage() {
                 Loaded from Prisma and your Neon database.
               </p>
             </div>
-            <nav className="flex gap-2 text-sm">
-              <Link
-                href="/cart"
-                className="rounded-full border border-amber-300 bg-amber-100 px-4 py-2 font-medium text-amber-900 hover:bg-amber-200"
-              >
-                View Cart
-              </Link>
-              <Link
-                href="/checkout"
-                className="rounded-full border border-stone-300 bg-white px-4 py-2 font-medium text-stone-900 hover:bg-stone-100"
-              >
-                Checkout
-              </Link>
-            </nav>
+            <MenuCartActions />
           </div>
         </header>
 
