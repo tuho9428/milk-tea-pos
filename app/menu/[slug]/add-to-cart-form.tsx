@@ -26,14 +26,19 @@ type AddToCartFormProps = {
   menuItem: Pick<CartItem, "menuItemId" | "name" | "basePrice">;
   groups: ModifierGroupView[];
   soldOut: boolean;
+  afterAdd?: "cart" | "menu";
+  showCartLink?: boolean;
 };
 
 export function AddToCartForm({
   menuItem,
   groups,
   soldOut,
+  afterAdd = "cart",
+  showCartLink = true,
 }: AddToCartFormProps) {
   const router = useRouter();
+  const [quantity, setQuantity] = useState(1);
   const [selectedByGroup, setSelectedByGroup] = useState<Record<string, string[]>>({});
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -49,8 +54,9 @@ export function AddToCartForm({
   });
 
   const totalPrice =
-    menuItem.basePrice +
-    selectedModifiers.reduce((sum, modifier) => sum + modifier.priceDelta, 0);
+    quantity *
+    (menuItem.basePrice +
+      selectedModifiers.reduce((sum, modifier) => sum + modifier.priceDelta, 0));
 
   function toggleOption(groupId: string, optionId: string, multiSelect: boolean) {
     setSelectedByGroup((current) => {
@@ -93,13 +99,13 @@ export function AddToCartForm({
     const cartItem: CartItem = {
       menuItemId: menuItem.menuItemId,
       name: menuItem.name,
-      quantity: 1,
+      quantity,
       basePrice: menuItem.basePrice,
       selectedModifiers,
     };
 
     addToStoredCart(cartItem);
-    router.push("/cart");
+    router.push(afterAdd === "menu" ? "/menu" : "/cart");
   }
 
   return (
@@ -153,6 +159,29 @@ export function AddToCartForm({
 
       <div className="mt-8 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-stone-700 bg-stone-950 p-4">
         <div>
+          <div className="flex items-center gap-3">
+            <p className="text-xs uppercase tracking-wide text-stone-400">Quantity</p>
+            <div className="inline-flex items-center rounded-lg border border-stone-700">
+              <button
+                type="button"
+                onClick={() => setQuantity((current) => Math.max(1, current - 1))}
+                className="px-3 py-1 text-stone-200 hover:bg-stone-800"
+                aria-label="Decrease quantity"
+              >
+                -
+              </button>
+              <span className="min-w-10 px-3 py-1 text-center text-stone-100">{quantity}</span>
+              <button
+                type="button"
+                onClick={() => setQuantity((current) => current + 1)}
+                className="px-3 py-1 text-stone-200 hover:bg-stone-800"
+                aria-label="Increase quantity"
+              >
+                +
+              </button>
+            </div>
+          </div>
+
           <p className="text-xs uppercase tracking-wide text-stone-400">Current Price</p>
           <p className="mt-1 text-2xl font-bold text-amber-300">{formatPrice(totalPrice)}</p>
           {selectedModifiers.length > 0 ? (
@@ -179,12 +208,14 @@ export function AddToCartForm({
           >
             Add to Cart
           </button>
-          <Link
-            href="/cart"
-            className="rounded-lg border border-stone-600 px-5 py-3 font-semibold text-stone-100 hover:bg-stone-800"
-          >
-            Go to Cart
-          </Link>
+          {showCartLink ? (
+            <Link
+              href="/cart"
+              className="rounded-lg border border-stone-600 px-5 py-3 font-semibold text-stone-100 hover:bg-stone-800"
+            >
+              Go to Cart
+            </Link>
+          ) : null}
         </div>
       </div>
     </>
