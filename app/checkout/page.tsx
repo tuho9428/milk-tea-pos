@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import { createOrderAction } from "@/app/checkout/actions";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -13,7 +13,6 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { calculateCartSubtotal, getMockCart } from "@/lib/mock-cart";
 import { formatPrice } from "@/lib/format";
-import { cn } from "@/lib/utils";
 
 export default async function CheckoutPage() {
   const cartItems = await getMockCart();
@@ -71,10 +70,7 @@ export default async function CheckoutPage() {
 
                 <Link
                   href="/cart"
-                  className={cn(
-                    buttonVariants({ variant: "outline", size: "lg" }),
-                    "border-stone-300 bg-white px-5 text-stone-900 hover:bg-stone-100",
-                  )}
+                  className="inline-flex h-9 items-center justify-center rounded-lg border border-stone-300 bg-white px-5 text-sm font-medium text-stone-900 transition-colors hover:bg-stone-100"
                 >
                   Back to Cart
                 </Link>
