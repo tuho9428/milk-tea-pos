@@ -8,8 +8,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { formatPrice, formatTaxRate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
-import { formatPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 const statusStyles = {
@@ -125,7 +125,7 @@ export default async function AdminOrdersPage() {
                   Orders
                 </CardTitle>
                 <CardDescription className="mt-1 text-stone-600">
-                  Newest orders first, with items and modifiers for quick review.
+                  Newest orders first, with subtotal, tax, total, and item details.
                 </CardDescription>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -172,10 +172,9 @@ export default async function AdminOrdersPage() {
               <Table>
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
-                    <TableHead className="w-[180px]">Order</TableHead>
-                    <TableHead>Customer</TableHead>
+                    <TableHead className="w-[220px]">Order</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Total</TableHead>
+                    <TableHead>Pricing</TableHead>
                     <TableHead>Created</TableHead>
                     <TableHead className="min-w-[360px]">Items</TableHead>
                   </TableRow>
@@ -206,23 +205,25 @@ export default async function AdminOrdersPage() {
                         </Link>
                       </TableCell>
                       <TableCell>
-                        <div className="space-y-1">
-                          <p className="font-medium text-stone-900">{order.customerName}</p>
-                          <p className="text-sm text-stone-500">{order.phone}</p>
-                          <p className="text-xs text-stone-400">
-                            {order.notes?.trim() || "No notes provided."}
+                        <div className="space-y-2">
+                          <Badge className={statusStyles[order.status]}>
+                            {formatStatusLabel(order.status)}
+                          </Badge>
+                          <p className="text-xs text-stone-500">
+                            Tax rate: {formatTaxRate(Number(order.taxRateApplied))}
                           </p>
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge className={statusStyles[order.status]}>
-                          {formatStatusLabel(order.status)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
                         <div className="space-y-1">
+                          <p className="text-sm text-stone-600">
+                            Subtotal: {formatPrice(Number(order.subtotal))}
+                          </p>
+                          <p className="text-sm text-stone-600">
+                            Tax: {formatPrice(Number(order.tax))}
+                          </p>
                           <p className="font-semibold text-stone-900">
-                            {formatPrice(Number(order.total))}
+                            Total: {formatPrice(Number(order.total))}
                           </p>
                           <p className="text-xs text-stone-500">
                             {order.items.length} item{order.items.length === 1 ? "" : "s"}

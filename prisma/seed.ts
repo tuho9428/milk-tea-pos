@@ -1,6 +1,7 @@
 import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { ModifierType, OrderStatus, PrismaClient } from "../app/generated/prisma/client";
+import { calculateOrderPricing } from "../lib/tax";
 
 const connectionString = process.env.DATABASE_URL;
 
@@ -171,13 +172,17 @@ async function main() {
     },
   });
 
+  const seededPricing = calculateOrderPricing(10.40);
+
   const order = await prisma.order.create({
     data: {
       customerName: "Walk-in Guest",
       phone: "0000000000",
       status: OrderStatus.PENDING,
-      subtotal: "10.40",
-      total: "10.90",
+      subtotal: seededPricing.subtotal,
+      tax: seededPricing.tax,
+      taxRateApplied: seededPricing.taxRateApplied,
+      total: seededPricing.total,
       notes: "Sample seeded order",
       items: {
         create: [

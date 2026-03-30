@@ -13,11 +13,11 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { calculateCartSubtotal, getMockCart } from "@/lib/mock-cart";
 import { formatPrice } from "@/lib/format";
+import { calculateOrderPricing } from "@/lib/tax";
 
 export default async function CheckoutPage() {
   const cartItems = await getMockCart();
-  const subtotal = calculateCartSubtotal(cartItems);
-  const total = subtotal;
+  const pricing = calculateOrderPricing(calculateCartSubtotal(cartItems));
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-amber-100 via-orange-100 to-stone-100 px-6 py-10">
@@ -126,11 +126,15 @@ export default async function CheckoutPage() {
             <dl className="mt-5 space-y-2 border-t border-stone-200 pt-4 text-sm">
               <div className="flex justify-between text-stone-600">
                 <dt>Subtotal</dt>
-                <dd>{formatPrice(subtotal)}</dd>
+                <dd>{formatPrice(pricing.subtotal)}</dd>
+              </div>
+              <div className="flex justify-between text-stone-600">
+                <dt>Tax</dt>
+                <dd>{formatPrice(pricing.tax)}</dd>
               </div>
               <div className="flex justify-between text-base font-semibold text-stone-900">
                 <dt>Total</dt>
-                <dd>{formatPrice(total)}</dd>
+                <dd>{formatPrice(pricing.total)}</dd>
               </div>
             </dl>
           </CardContent>

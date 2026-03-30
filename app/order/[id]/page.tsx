@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { formatPrice } from "@/lib/format";
+import { formatPrice, formatTaxRate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 
 type OrderConfirmationPageProps = {
@@ -69,6 +69,12 @@ export default async function OrderConfirmationPage({
                 }).format(order.createdAt)}
               </dd>
             </div>
+            <div className="rounded-xl bg-stone-50 p-4 sm:col-span-2">
+              <dt className="text-xs uppercase tracking-wide text-stone-500">Tax Rate</dt>
+              <dd className="mt-1 text-stone-800">
+                {formatTaxRate(Number(order.taxRateApplied))}
+              </dd>
+            </div>
             {order.notes ? (
               <div className="rounded-xl bg-stone-50 p-4 sm:col-span-2">
                 <dt className="text-xs uppercase tracking-wide text-stone-500">Notes</dt>
@@ -122,6 +128,10 @@ export default async function OrderConfirmationPage({
             <div className="flex justify-between text-sm text-stone-600">
               <dt>Subtotal</dt>
               <dd>{formatPrice(Number(order.subtotal))}</dd>
+            </div>
+            <div className="flex justify-between text-sm text-stone-600">
+              <dt>Tax</dt>
+              <dd>{formatPrice(Number(order.tax))}</dd>
             </div>
             <div className="flex justify-between text-base font-semibold text-stone-900">
               <dt>Total</dt>

@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import { calculateCartSubtotal, getMockCart } from "@/lib/mock-cart";
 import { prisma } from "@/lib/prisma";
+import { calculateOrderPricing } from "@/lib/tax";
 
 const checkoutSchema = z.object({
   customerName: z.string().trim().min(1, "Customer name is required."),
@@ -25,7 +26,7 @@ export async function createOrderAction(formData: FormData) {
     throw new Error("Cannot place an order with an empty cart.");
   }
 
-  const subtotal = calculateCartSubtotal(cartItems);
+  const pricing = calculateOrderPricing(calculateCartSubtotal(cartItems));
 
   const order = await prisma.order.create({
     data: {
@@ -33,8 +34,10 @@ export async function createOrderAction(formData: FormData) {
       phone: parsed.phone,
       notes: parsed.notes || null,
       status: "PENDING",
-      subtotal,
-      total: subtotal,
+      subtotal: pricing.subtotal,
+      tax: pricing.tax,
+      taxRateApplied: pricing.taxRateApplied,
+      total: pricing.total,
       items: {
         create: cartItems.map((item) => {
           const modifierTotal = item.selectedModifiers.reduce(

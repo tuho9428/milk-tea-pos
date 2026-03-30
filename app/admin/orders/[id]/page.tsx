@@ -9,7 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { formatPrice } from "@/lib/format";
+import { formatPrice, formatTaxRate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { cn } from "@/lib/utils";
 
@@ -157,10 +157,26 @@ export default async function AdminOrderDetailPage({
               </div>
               <div className="rounded-xl border border-stone-200 bg-stone-50 p-4">
                 <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">
+                  Tax
+                </p>
+                <p className="mt-1 text-sm text-stone-900">
+                  {formatPrice(Number(order.tax))}
+                </p>
+              </div>
+              <div className="rounded-xl border border-stone-200 bg-stone-50 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">
                   Total
                 </p>
                 <p className="mt-1 text-sm font-semibold text-stone-900">
                   {formatPrice(Number(order.total))}
+                </p>
+              </div>
+              <div className="rounded-xl border border-stone-200 bg-stone-50 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">
+                  Tax Rate
+                </p>
+                <p className="mt-1 text-sm text-stone-900">
+                  {formatTaxRate(Number(order.taxRateApplied))}
                 </p>
               </div>
               <div className="rounded-xl border border-stone-200 bg-stone-50 p-4 md:col-span-2">
