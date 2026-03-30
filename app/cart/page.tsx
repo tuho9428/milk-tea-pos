@@ -1,52 +1,11 @@
 import Link from "next/link";
 import { formatPrice } from "lib/format";
-import { prisma } from "lib/prisma";
-
-const sampleQuantities: Record<string, number> = {
-  "brown-sugar-boba-milk-tea": 1,
-  "sea-salt-coffee": 2,
-};
+import { calculateCartSubtotal, getMockCart } from "@/lib/mock-cart";
 
 export default async function CartPage() {
-  let drinks = await prisma.menuItem.findMany({
-    where: {
-      slug: { in: Object.keys(sampleQuantities) },
-    },
-    select: {
-      id: true,
-      slug: true,
-      name: true,
-      basePrice: true,
-      isSoldOut: true,
-      isActive: true,
-    },
-  });
-
-  if (drinks.length === 0) {
-    drinks = await prisma.menuItem.findMany({
-      where: { isActive: true },
-      select: {
-        id: true,
-        slug: true,
-        name: true,
-        basePrice: true,
-        isSoldOut: true,
-        isActive: true,
-      },
-      orderBy: { name: "asc" },
-      take: 2,
-    });
-  }
-
-  const rows = drinks.map((drink) => ({
-    ...drink,
-    quantity: sampleQuantities[drink.slug] ?? 1,
-    unitPrice: Number(drink.basePrice),
-  }));
-
-  const subtotal = rows.reduce((sum, row) => sum + row.quantity * row.unitPrice, 0);
-  const serviceFee = rows.length > 0 ? 0.5 : 0;
-  const total = subtotal + serviceFee;
+  const rows = await getMockCart();
+  const subtotal = calculateCartSubtotal(rows);
+  const total = subtotal;
 
   return (
     <main className="min-h-screen bg-stone-100 px-6 py-10">
@@ -67,18 +26,28 @@ export default async function CartPage() {
             <div className="space-y-4">
               {rows.map((row) => (
                 <article
-                  key={row.id}
+                  key={row.menuItemId}
                   className="rounded-xl border border-stone-200 bg-white p-5"
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                       <h2 className="text-lg font-semibold text-stone-900">{row.name}</h2>
-                      <p className="mt-1 text-sm text-stone-600">
-                        {row.isSoldOut || !row.isActive ? "Sold Out" : "Available"}
-                      </p>
+                      <p className="mt-1 text-sm text-stone-600">Mocked cart item</p>
+                      {row.selectedModifiers.length > 0 ? (
+                        <ul className="mt-2 space-y-1 text-sm text-stone-500">
+                          {row.selectedModifiers.map((modifier) => (
+                            <li key={`${row.menuItemId}-${modifier.name}`}>
+                              {modifier.name}
+                              {modifier.priceDelta > 0
+                                ? ` (+${formatPrice(modifier.priceDelta)})`
+                                : ""}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : null}
                     </div>
                     <p className="text-sm font-semibold text-stone-700">
-                      {formatPrice(row.unitPrice)}
+                      {formatPrice(row.basePrice)}
                     </p>
                   </div>
 
@@ -87,7 +56,14 @@ export default async function CartPage() {
                       <span className="font-medium text-stone-900">{row.quantity}</span>
                     </div>
                     <p className="text-lg font-bold text-stone-900">
-                      {formatPrice(row.unitPrice * row.quantity)}
+                      {formatPrice(
+                        row.quantity *
+                          (row.basePrice +
+                            row.selectedModifiers.reduce(
+                              (sum, modifier) => sum + modifier.priceDelta,
+                              0,
+                            )),
+                      )}
                     </p>
                   </div>
                 </article>
@@ -102,10 +78,6 @@ export default async function CartPage() {
             <div className="flex justify-between text-stone-600">
               <dt>Subtotal</dt>
               <dd>{formatPrice(subtotal)}</dd>
-            </div>
-            <div className="flex justify-between text-stone-600">
-              <dt>Service Fee</dt>
-              <dd>{formatPrice(serviceFee)}</dd>
             </div>
             <div className="flex justify-between border-t border-stone-200 pt-3 text-base font-semibold text-stone-900">
               <dt>Total</dt>
