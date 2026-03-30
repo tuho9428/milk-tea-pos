@@ -13,10 +13,24 @@ if (!connectionString) {
 
 const adapter = new PrismaPg({ connectionString });
 
+function hasOrderTaxFields(client: PrismaClient) {
+  const runtimeDataModel = (client as PrismaClient & {
+    _runtimeDataModel?: {
+      models?: Record<string, { fields?: Array<{ name: string }> }>;
+    };
+  })._runtimeDataModel;
+
+  const orderFields = runtimeDataModel?.models?.Order?.fields ?? [];
+  const orderFieldNames = new Set(orderFields.map((field) => field.name));
+
+  return orderFieldNames.has("tax") && orderFieldNames.has("taxRateApplied");
+}
+
 const hasExpectedDelegates =
   !!globalForPrisma.__prisma &&
   "menuItem" in globalForPrisma.__prisma &&
-  "category" in globalForPrisma.__prisma;
+  "category" in globalForPrisma.__prisma &&
+  hasOrderTaxFields(globalForPrisma.__prisma);
 
 export const prisma = hasExpectedDelegates
   ? globalForPrisma.__prisma

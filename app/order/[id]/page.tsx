@@ -1,17 +1,21 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { ClearCartOnLoad } from "@/app/order/[id]/clear-cart-on-load";
 import { formatPrice, formatTaxRate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 
 type OrderConfirmationPageProps = {
   params: Promise<{ id: string }>;
+  searchParams?: Promise<{ clearCart?: string }>;
 };
 
 export default async function OrderConfirmationPage({
   params,
+  searchParams,
 }: OrderConfirmationPageProps) {
   const { id } = await params;
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
 
   const order = await prisma.order.findUnique({
     where: { id },
@@ -35,6 +39,7 @@ export default async function OrderConfirmationPage({
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-amber-50 px-6 py-10">
+      <ClearCartOnLoad shouldClear={resolvedSearchParams?.clearCart === "1"} />
       <div className="mx-auto max-w-4xl space-y-6">
         <section className="rounded-2xl border border-emerald-200 bg-white p-7 shadow-sm">
           <p className="text-sm font-semibold tracking-[0.2em] text-emerald-600">

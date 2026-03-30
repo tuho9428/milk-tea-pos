@@ -52,6 +52,17 @@ export function addToStoredCart(item: CartItem) {
   window.dispatchEvent(new Event(CART_STORAGE_EVENT));
 }
 
+export function clearStoredCart() {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.removeItem(CART_STORAGE_KEY);
+  cachedRawValue = null;
+  cachedCart = [];
+  window.dispatchEvent(new Event(CART_STORAGE_EVENT));
+}
+
 export function subscribeToStoredCart(callback: () => void) {
   if (typeof window === "undefined") {
     return () => {};
