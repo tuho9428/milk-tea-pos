@@ -152,12 +152,6 @@ export default async function OrderConfirmationPage({
           >
             Order More Drinks
           </Link>
-          <Link
-            href="/checkout"
-            className="rounded-lg border border-stone-300 px-5 py-3 text-sm font-semibold text-stone-900 hover:bg-stone-100"
-          >
-            Back to Checkout
-          </Link>
         </div>
       </div>
     </main>

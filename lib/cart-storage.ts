@@ -113,13 +113,16 @@ export function subscribeToStoredCart(callback: () => void) {
   }
 
   const handleChange = () => callback();
+  const handlePageShow = () => callback();
 
   window.addEventListener("storage", handleChange);
   window.addEventListener(CART_STORAGE_EVENT, handleChange);
+  window.addEventListener("pageshow", handlePageShow);
 
   return () => {
     window.removeEventListener("storage", handleChange);
     window.removeEventListener(CART_STORAGE_EVENT, handleChange);
+    window.removeEventListener("pageshow", handlePageShow);
   };
 }
 

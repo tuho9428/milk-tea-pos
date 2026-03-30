@@ -14,28 +14,13 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import type { CartItem } from "@/lib/cart";
 import { calculateCartSubtotal } from "@/lib/cart";
-import { getStoredCart, hasStoredCart, subscribeToStoredCart } from "@/lib/cart-storage";
+import { getStoredCart, subscribeToStoredCart } from "@/lib/cart-storage";
 import { formatPrice } from "@/lib/format";
 import { calculateOrderPricing } from "@/lib/tax";
 
-type CheckoutClientProps = {
-  initialCartItems: CartItem[];
-};
-
-export function CheckoutClient({ initialCartItems }: CheckoutClientProps) {
-  const cartItems = useSyncExternalStore(
-    subscribeToStoredCart,
-    () => {
-      if (!hasStoredCart()) {
-        return initialCartItems;
-      }
-
-      return getStoredCart();
-    },
-    () => initialCartItems,
-  );
+export function CheckoutClient() {
+  const cartItems = useSyncExternalStore(subscribeToStoredCart, getStoredCart, () => []);
 
   const pricing = useMemo(
     () => calculateOrderPricing(calculateCartSubtotal(cartItems)),
@@ -93,10 +78,10 @@ export function CheckoutClient({ initialCartItems }: CheckoutClientProps) {
               </Button>
 
               <Link
-                href="/cart"
+                href={cartItems.length === 0 ? "/menu" : "/cart"}
                 className="inline-flex h-9 items-center justify-center rounded-lg border border-stone-300 bg-white px-5 text-sm font-medium text-stone-900 transition-colors hover:bg-stone-100"
               >
-                Back to Cart
+                {cartItems.length === 0 ? "Go to Menu" : "Back to Cart"}
               </Link>
             </div>
           </form>

@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useSyncExternalStore } from "react";
 
-import type { CartItem } from "@/lib/cart";
 import {
   calculateCartLineTotal,
   calculateCartLineUnitPrice,
@@ -12,29 +11,14 @@ import {
 } from "@/lib/cart";
 import {
   getStoredCart,
-  hasStoredCart,
   removeStoredCartItem,
   subscribeToStoredCart,
   updateStoredCartItemQuantity,
 } from "@/lib/cart-storage";
 import { formatPrice } from "@/lib/format";
 
-type CartClientProps = {
-  initialItems: CartItem[];
-};
-
-export function CartClient({ initialItems }: CartClientProps) {
-  const rows = useSyncExternalStore(
-    subscribeToStoredCart,
-    () => {
-      if (!hasStoredCart()) {
-        return initialItems;
-      }
-
-      return getStoredCart();
-    },
-    () => initialItems,
-  );
+export function CartClient() {
+  const rows = useSyncExternalStore(subscribeToStoredCart, getStoredCart, () => []);
 
   const subtotal = calculateCartSubtotal(rows);
   const total = subtotal;
