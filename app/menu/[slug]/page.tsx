@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { formatPrice } from "@/lib/format";
-import { prisma } from "@/lib/prisma";
+
+import { ProductDetailContent } from "@/app/menu/[slug]/product-detail-content";
+import { getProductDetailBySlug } from "@/app/menu/[slug]/product-detail-data";
 
 type DrinkDetailPageProps = {
   params: Promise<{ slug: string }>;
@@ -9,23 +10,11 @@ type DrinkDetailPageProps = {
 
 export default async function DrinkDetailPage({ params }: DrinkDetailPageProps) {
   const { slug } = await params;
-  const drink = await prisma.menuItem.findUnique({
-    where: { slug },
-    include: {
-      category: true,
-      groups: {
-        include: {
-          options: true,
-        },
-      },
-    },
-  });
+  const drink = await getProductDetailBySlug(slug);
 
   if (!drink) {
     notFound();
   }
-
-  const soldOut = drink.isSoldOut || !drink.isActive;
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-stone-950 via-stone-900 to-black px-6 py-10 text-stone-100">
@@ -37,85 +26,7 @@ export default async function DrinkDetailPage({ params }: DrinkDetailPageProps) 
           Back to Menu
         </Link>
 
-        <section className="rounded-2xl border border-stone-700 bg-stone-900/80 p-7 shadow-xl">
-          <p className="text-xs font-semibold tracking-[0.2em] text-amber-300">
-            {drink.category.name}
-          </p>
-          <h1 className="mt-2 text-3xl font-bold text-white">{drink.name}</h1>
-          <p className="mt-3 max-w-3xl text-stone-300">
-            {drink.description ?? "No description yet."}
-          </p>
-
-          {drink.tags.length > 0 ? (
-            <div className="mt-4 flex flex-wrap gap-2">
-              {drink.tags.map((tag) => (
-                <span
-                  key={tag}
-                  className="rounded-full bg-amber-200/20 px-3 py-1 text-sm text-amber-200"
-                >
-                  {tag}
-                </span>
-              ))}
-            </div>
-          ) : null}
-
-          <div className="mt-6 grid gap-4 md:grid-cols-3">
-            <div className="rounded-xl border border-stone-700 bg-stone-950 p-4">
-              <p className="text-xs uppercase tracking-wide text-stone-400">Price</p>
-              <p className="mt-2 text-2xl font-bold text-amber-300">
-                {formatPrice(Number(drink.basePrice))}
-              </p>
-            </div>
-            <div className="rounded-xl border border-stone-700 bg-stone-950 p-4 md:col-span-2">
-              <p className="text-xs uppercase tracking-wide text-stone-400">Status</p>
-              <div className="mt-2">
-                {soldOut ? (
-                  <span className="rounded-full bg-red-900/40 px-3 py-1 text-sm text-red-200">
-                    Sold Out
-                  </span>
-                ) : (
-                  <span className="rounded-full bg-emerald-900/40 px-3 py-1 text-sm text-emerald-200">
-                    Available
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-6 grid gap-4 md:grid-cols-2">
-            {drink.groups.map((group) => (
-              <div
-                key={group.id}
-                className="rounded-xl border border-stone-700 bg-stone-950 p-4"
-              >
-                <h2 className="font-semibold text-white">{group.name}</h2>
-                <ul className="mt-2 space-y-2 text-sm text-stone-300">
-                  {group.options.map((option) => (
-                    <li key={option.id}>
-                      {option.name} ({formatPrice(Number(option.priceDelta))})
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-8 flex flex-wrap gap-3">
-            <button
-              type="button"
-              disabled={soldOut}
-              className="rounded-lg bg-amber-300 px-5 py-3 font-semibold text-stone-900 hover:bg-amber-200 disabled:cursor-not-allowed disabled:bg-stone-500 disabled:text-stone-200"
-            >
-              Add to Cart
-            </button>
-            <Link
-              href="/cart"
-              className="rounded-lg border border-stone-600 px-5 py-3 font-semibold text-stone-100 hover:bg-stone-800"
-            >
-              Go to Cart
-            </Link>
-          </div>
-        </section>
+        <ProductDetailContent drink={drink} />
       </div>
     </main>
   );
