@@ -88,7 +88,7 @@ export function OrdersBoardClient({
   initialOrders,
 }: OrdersBoardClientProps) {
   const router = useRouter();
-  const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
+  const [draggedOrderId, setDraggedOrderId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const isMounted = useSyncExternalStore(
     subscribeToHydration,
@@ -120,9 +120,9 @@ export function OrdersBoardClient({
     [columns, initialOrders],
   );
   const activeOrder =
-    activeOrderId === null
+    draggedOrderId === null
       ? null
-      : initialOrders.find((order) => order.id === activeOrderId) ?? null;
+      : initialOrders.find((order) => order.id === draggedOrderId) ?? null;
 
   async function updateStatus(orderId: string, status: string) {
     const formData = new FormData();
@@ -136,7 +136,7 @@ export function OrdersBoardClient({
     const overId = event.over?.id;
     const orderId = event.active.id;
 
-    setActiveOrderId(null);
+    setDraggedOrderId(null);
 
     if (typeof orderId !== "string" || typeof overId !== "string") {
       return;
@@ -172,11 +172,11 @@ export function OrdersBoardClient({
       sensors={sensors}
       collisionDetection={closestCorners}
       onDragStart={(event) => {
-        setActiveOrderId(String(event.active.id));
+        setDraggedOrderId(String(event.active.id));
       }}
       onDragEnd={handleDragEnd}
       onDragCancel={() => {
-        setActiveOrderId(null);
+        setDraggedOrderId(null);
       }}
     >
       <section className="grid gap-4 overflow-x-auto xl:grid-cols-4">
@@ -420,8 +420,9 @@ function BoardCardContent({
             ) : null}
 
             <Link
-              href={`/admin/orders/${order.id}`}
+              href={`/admin/orders/board?order=${order.id}`}
               className="min-h-11 rounded-lg border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700 transition-colors hover:bg-stone-100"
+              scroll={false}
             >
               View
             </Link>
