@@ -26,5 +26,6 @@ export async function updateOrderStatusAction(formData: FormData) {
   });
 
   revalidatePath("/admin/orders");
+  revalidatePath("/admin/orders/board");
   revalidatePath(`/admin/orders/${parsed.orderId}`);
 }
