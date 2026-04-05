@@ -137,7 +137,7 @@ export default async function AdminOrdersBoardPage({
         />
       </div>
 
-      {activeOrder ? (
+      {activeOrderId ? (
         <div className="fixed inset-0 z-50 bg-stone-950/60 px-4 py-6 backdrop-blur-sm">
           <Link
             href="/admin/orders/board"
@@ -157,7 +157,29 @@ export default async function AdminOrdersBoardPage({
               </Link>
             </div>
 
-            <OrderDetailContent order={activeOrder} mode="modal" />
+            {activeOrder ? (
+              <OrderDetailContent order={activeOrder} mode="modal" />
+            ) : (
+              <Card className="border border-stone-200 bg-white py-0 shadow-xl">
+                <CardHeader className="border-b border-stone-200 px-6 py-5">
+                  <CardTitle className="text-xl font-semibold text-stone-900">
+                    Order Not Found
+                  </CardTitle>
+                  <CardDescription className="text-stone-600">
+                    This order is unavailable or could not be loaded.
+                  </CardDescription>
+                </CardHeader>
+                <div className="px-6 py-6">
+                  <Link
+                    href="/admin/orders/board"
+                    className="inline-flex rounded-lg bg-stone-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-stone-700"
+                    scroll={false}
+                  >
+                    Back to Board
+                  </Link>
+                </div>
+              </Card>
+            )}
           </div>
         </div>
       ) : null}

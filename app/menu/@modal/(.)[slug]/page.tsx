@@ -24,11 +24,13 @@ export default async function MenuItemModalPage({
         href="/menu"
         className="absolute inset-0"
         aria-label="Close product details"
+        scroll={false}
       />
       <div className="relative mx-auto max-w-4xl">
         <div className="mb-3 flex justify-end">
           <Link
             href="/menu"
+            scroll={false}
             className="rounded-lg border border-stone-600 bg-stone-900/90 px-3 py-2 text-sm font-medium text-stone-100 hover:bg-stone-800"
           >
             Close

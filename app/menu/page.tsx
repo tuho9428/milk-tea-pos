@@ -1,13 +1,26 @@
 import Link from "next/link";
 import { MenuCartActions } from "@/app/menu/menu-cart-actions";
+import { ProductDetailContent } from "@/app/menu/[slug]/product-detail-content";
+import { getProductDetailBySlug } from "@/app/menu/[slug]/product-detail-data";
 import { prisma } from "lib/prisma";
 import { formatPrice } from "lib/format";
 
-export default async function MenuPage() {
+type MenuPageProps = {
+  searchParams?: Promise<{
+    item?: string;
+  }>;
+};
+
+export default async function MenuPage({ searchParams }: MenuPageProps) {
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  const activeItemSlug = resolvedSearchParams?.item?.trim() || null;
   const drinks = await prisma.menuItem.findMany({
     include: { category: true },
     orderBy: [{ category: { name: "asc" } }, { name: "asc" }],
   });
+  const activeDrink = activeItemSlug
+    ? await getProductDetailBySlug(activeItemSlug).catch(() => null)
+    : null;
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-amber-50 via-orange-50 to-rose-50 px-6 py-10">
@@ -35,7 +48,8 @@ export default async function MenuPage() {
             return (
               <Link
                 key={drink.id}
-                href={`/menu/${drink.slug}`}
+                href={`/menu?item=${drink.slug}`}
+                scroll={false}
                 className="group block rounded-2xl border border-stone-200 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:border-amber-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-2 focus-visible:ring-offset-amber-50"
               >
                 <article>
@@ -85,6 +99,49 @@ export default async function MenuPage() {
           })}
         </section>
       </div>
+
+      {activeItemSlug ? (
+        <div className="fixed inset-0 z-50 bg-stone-950/70 px-4 py-6 backdrop-blur-sm">
+          <Link
+            href="/menu"
+            className="absolute inset-0"
+            aria-label="Close product details"
+            scroll={false}
+          />
+
+          <div className="relative mx-auto max-w-4xl">
+            <div className="mb-3 flex justify-end">
+              <Link
+                href="/menu"
+                scroll={false}
+                className="rounded-lg border border-stone-600 bg-stone-900/90 px-3 py-2 text-sm font-medium text-stone-100 hover:bg-stone-800"
+              >
+                Close
+              </Link>
+            </div>
+
+            {activeDrink ? (
+              <ProductDetailContent drink={activeDrink} mode="modal" />
+            ) : (
+              <div className="rounded-2xl border border-stone-700 bg-stone-900/90 p-7 text-stone-100 shadow-xl">
+                <h2 className="text-2xl font-semibold">Item not found</h2>
+                <p className="mt-2 text-stone-300">
+                  This menu item is unavailable or could not be loaded.
+                </p>
+                <div className="mt-5">
+                  <Link
+                    href="/menu"
+                    scroll={false}
+                    className="inline-flex rounded-lg bg-amber-300 px-4 py-2 text-sm font-semibold text-stone-900 hover:bg-amber-200"
+                  >
+                    Back to Menu
+                  </Link>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }
