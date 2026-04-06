@@ -23,7 +23,12 @@ function hasOrderTaxFields(client: PrismaClient) {
   const orderFields = runtimeDataModel?.models?.Order?.fields ?? [];
   const orderFieldNames = new Set(orderFields.map((field) => field.name));
 
-  return orderFieldNames.has("tax") && orderFieldNames.has("taxRateApplied");
+  return (
+    orderFieldNames.has("tax") &&
+    orderFieldNames.has("taxRateApplied") &&
+    orderFieldNames.has("displayOrderNumber") &&
+    orderFieldNames.has("displayOrderDateKey")
+  );
 }
 
 function hasModifierTemplateOptionSortOrder(client: PrismaClient) {

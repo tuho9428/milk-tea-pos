@@ -85,6 +85,7 @@ export default async function AdminOrdersBoardPage({
 
   const serializedOrders: BoardOrder[] = orders.map((order) => ({
     id: order.id,
+    displayOrderNumber: order.displayOrderNumber,
     customerName: order.customerName,
     status: order.status as BoardColumnStatus,
     total: Number(order.total),
@@ -114,6 +115,12 @@ export default async function AdminOrdersBoardPage({
                 </CardDescription>
               </div>
               <div className="flex flex-wrap gap-2">
+                <Link
+                  href="/admin"
+                  className="rounded-lg border border-stone-300 bg-stone-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-stone-700"
+                >
+                  Admin Dashboard
+                </Link>
                 <Link
                   href="/admin/orders"
                   className="rounded-lg border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition-colors hover:bg-stone-100"

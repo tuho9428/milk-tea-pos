@@ -54,8 +54,10 @@ export default async function OrderConfirmationPage({
 
           <dl className="mt-6 grid gap-4 sm:grid-cols-2">
             <div className="rounded-xl bg-stone-50 p-4">
-              <dt className="text-xs uppercase tracking-wide text-stone-500">Order ID</dt>
-              <dd className="mt-1 font-mono text-sm text-stone-800">{order.id}</dd>
+              <dt className="text-xs uppercase tracking-wide text-stone-500">Order Number</dt>
+              <dd className="mt-1 text-sm font-semibold text-stone-800">
+                #{order.displayOrderNumber}
+              </dd>
             </div>
             <div className="rounded-xl bg-stone-50 p-4">
               <dt className="text-xs uppercase tracking-wide text-stone-500">Status</dt>

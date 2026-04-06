@@ -41,12 +41,20 @@ export default async function AdminModifiersPage() {
                 Manage shared modifier sets like size, sugar, and ice.
               </p>
             </div>
-            <Link
-              href="/admin/menu"
-              className="rounded-lg border border-stone-600 px-4 py-2 text-sm font-semibold text-stone-100 hover:bg-stone-800"
-            >
-              Menu Manager
-            </Link>
+            <div className="flex flex-wrap gap-2">
+              <Link
+                href="/admin"
+                className="rounded-lg border border-stone-600 bg-amber-300 px-4 py-2 text-sm font-semibold text-stone-900 hover:bg-amber-200"
+              >
+                Admin Dashboard
+              </Link>
+              <Link
+                href="/admin/menu"
+                className="rounded-lg border border-stone-600 px-4 py-2 text-sm font-semibold text-stone-100 hover:bg-stone-800"
+              >
+                Menu Manager
+              </Link>
+            </div>
           </div>
         </header>
 
