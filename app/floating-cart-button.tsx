@@ -20,8 +20,9 @@ export function FloatingCartButton() {
   const itemCount = getCartItemCount(cartItems);
   const isAdminRoute = pathname.startsWith("/admin");
   const isCartPage = pathname === "/cart";
+  const isCheckoutPage = pathname === "/checkout";
 
-  if (itemCount === 0 || isAdminRoute || isCartPage) {
+  if (itemCount === 0 || isAdminRoute || isCartPage || isCheckoutPage) {
     return null;
   }
 
