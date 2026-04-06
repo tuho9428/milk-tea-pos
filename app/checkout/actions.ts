@@ -39,14 +39,20 @@ export async function createOrderAction(formData: FormData) {
         isSoldOut: false,
       },
       include: {
-        groups: {
+        templateLinks: {
           where: {
-            required: true,
+            modifierTemplate: {
+              required: true,
+            },
           },
           include: {
-            options: {
-              select: {
-                name: true,
+            modifierTemplate: {
+              include: {
+                options: {
+                  select: {
+                    name: true,
+                  },
+                },
               },
             },
           },
@@ -71,8 +77,8 @@ export async function createOrderAction(formData: FormData) {
         throw new Error("Cart item quantity must be at least 1.");
       }
 
-      for (const requiredGroup of menuItem.groups) {
-        const hasSelection = requiredGroup.options.some((option) =>
+      for (const requiredTemplate of menuItem.templateLinks) {
+        const hasSelection = requiredTemplate.modifierTemplate.options.some((option) =>
           cartItem.selectedModifiers.some((modifier) => modifier.name === option.name),
         );
 

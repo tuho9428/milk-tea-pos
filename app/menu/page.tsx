@@ -16,7 +16,7 @@ export default async function MenuPage({ searchParams }: MenuPageProps) {
   const activeItemSlug = resolvedSearchParams?.item?.trim() || null;
   const drinks = await prisma.menuItem.findMany({
     include: { category: true },
-    orderBy: [{ category: { name: "asc" } }, { name: "asc" }],
+    orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
   });
   const activeDrink = activeItemSlug
     ? await getProductDetailBySlug(activeItemSlug).catch(() => null)
