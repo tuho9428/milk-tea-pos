@@ -26,10 +26,27 @@ function hasOrderTaxFields(client: PrismaClient) {
   return orderFieldNames.has("tax") && orderFieldNames.has("taxRateApplied");
 }
 
+function hasModifierTemplateOptionSortOrder(client: PrismaClient) {
+  const runtimeDataModel = (client as PrismaClient & {
+    _runtimeDataModel?: {
+      models?: Record<string, { fields?: Array<{ name: string }> }>;
+    };
+  })._runtimeDataModel;
+
+  const optionFields = runtimeDataModel?.models?.ModifierTemplateOption?.fields ?? [];
+  const optionFieldNames = new Set(optionFields.map((field) => field.name));
+
+  return optionFieldNames.has("sortOrder");
+}
+
 const hasExpectedDelegates =
   !!globalForPrisma.__prisma &&
   "menuItem" in globalForPrisma.__prisma &&
   "category" in globalForPrisma.__prisma &&
+  "menuItemModifierTemplate" in globalForPrisma.__prisma &&
+  "modifierTemplate" in globalForPrisma.__prisma &&
+  "modifierTemplateOption" in globalForPrisma.__prisma &&
+  hasModifierTemplateOptionSortOrder(globalForPrisma.__prisma) &&
   hasOrderTaxFields(globalForPrisma.__prisma);
 
 export const prisma = hasExpectedDelegates

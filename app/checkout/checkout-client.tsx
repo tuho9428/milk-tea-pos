@@ -46,7 +46,9 @@ export function CheckoutClient({ taxRate }: CheckoutClientProps) {
   }, [router]);
 
   return (
-    <div className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-3">
+    <form action={createOrderAction} className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-3">
+      <input type="hidden" name="cartPayload" value={JSON.stringify(cartItems)} />
+
       <Card className="border-stone-200 bg-white py-0 lg:col-span-2">
         <CardHeader className="gap-2 border-b border-stone-200 px-6 py-6">
           <CardTitle className="text-3xl font-bold text-stone-900">Checkout</CardTitle>
@@ -56,9 +58,7 @@ export function CheckoutClient({ taxRate }: CheckoutClientProps) {
         </CardHeader>
 
         <CardContent className="px-6 py-6">
-          <form action={createOrderAction} className="grid gap-4 sm:grid-cols-2">
-            <input type="hidden" name="cartPayload" value={JSON.stringify(cartItems)} />
-
+          <div className="grid gap-4 sm:grid-cols-2">
             <label className="flex flex-col gap-2 text-sm">
               <span className="font-medium text-stone-700">Customer Name</span>
               <Input
@@ -85,24 +85,7 @@ export function CheckoutClient({ taxRate }: CheckoutClientProps) {
                 className="min-h-32 border-stone-300 bg-white text-stone-900 placeholder:text-stone-400"
               />
             </label>
-            <div className="mt-2 flex flex-wrap gap-3 sm:col-span-2">
-              <Button
-                type="submit"
-                disabled={cartItems.length === 0}
-                size="lg"
-                className="bg-stone-900 px-5 text-white hover:bg-stone-700"
-              >
-                Place Order
-              </Button>
-
-              <Link
-                href={cartItems.length === 0 ? "/menu" : "/cart"}
-                className="inline-flex h-9 items-center justify-center rounded-lg border border-stone-300 bg-white px-5 text-sm font-medium text-stone-900 transition-colors hover:bg-stone-100"
-              >
-                {cartItems.length === 0 ? "Go to Menu" : "Back to Cart"}
-              </Link>
-            </div>
-          </form>
+          </div>
         </CardContent>
       </Card>
 
@@ -164,8 +147,28 @@ export function CheckoutClient({ taxRate }: CheckoutClientProps) {
               <dd>{formatPrice(pricing.total)}</dd>
             </div>
           </dl>
+
+          <div className="mt-5">
+            <div className="flex flex-wrap gap-3">
+              <Button
+                type="submit"
+                disabled={cartItems.length === 0}
+                size="lg"
+                className="flex-1 h-11 bg-stone-900 px-5 text-white hover:bg-stone-700"
+              >
+                Place Order
+              </Button>
+
+              <Link
+                href={cartItems.length === 0 ? "/menu" : "/cart"}
+                className="inline-flex h-11 items-center justify-center rounded-lg border border-stone-300 bg-white px-5 text-sm font-medium text-stone-900 transition-colors hover:bg-stone-100"
+              >
+                {cartItems.length === 0 ? "Go to Menu" : "Back to Cart"}
+              </Link>
+            </div>
+          </div>
         </CardContent>
       </Card>
-    </div>
+    </form>
   );
 }

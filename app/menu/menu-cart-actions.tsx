@@ -6,11 +6,13 @@ import { useSyncExternalStore } from "react";
 import { getCartItemCount } from "@/lib/cart";
 import { getStoredCart, subscribeToStoredCart } from "@/lib/cart-storage";
 
+const EMPTY_CART: ReturnType<typeof getStoredCart> = [];
+
 export function MenuCartActions() {
   const cartItems = useSyncExternalStore(
     subscribeToStoredCart,
     getStoredCart,
-    () => [],
+    () => EMPTY_CART,
   );
 
   const itemCount = getCartItemCount(cartItems);

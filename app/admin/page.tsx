@@ -86,7 +86,12 @@ export default async function AdminDashboardPage() {
     {
       href: "/admin/menu",
       title: "Menu Management",
-      description: "Add drinks, edit items, and toggle availability.",
+      description: "Order menu items, edit details, and attach modifier templates.",
+    },
+    {
+      href: "/admin/modifiers",
+      title: "Modifier Templates",
+      description: "Manage shared modifier sets like size, sugar, and ice.",
     },
     {
       href: "/admin/settings",

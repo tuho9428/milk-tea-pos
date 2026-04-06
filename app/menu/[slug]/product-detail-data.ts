@@ -5,9 +5,16 @@ export async function getProductDetailBySlug(slug: string) {
     where: { slug },
     include: {
       category: true,
-      groups: {
+      templateLinks: {
+        orderBy: [{ sortOrder: "asc" }],
         include: {
-          options: true,
+          modifierTemplate: {
+            include: {
+              options: {
+                orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
+              },
+            },
+          },
         },
       },
     },
@@ -25,12 +32,12 @@ export async function getProductDetailBySlug(slug: string) {
     tags: drink.tags,
     basePrice: Number(drink.basePrice),
     soldOut: drink.isSoldOut || !drink.isActive,
-    groups: drink.groups.map((group) => ({
-      id: group.id,
-      name: group.name,
-      required: group.required,
-      multiSelect: group.multiSelect,
-      options: group.options.map((option) => ({
+    groups: drink.templateLinks.map((link) => ({
+      id: `${link.menuItemId}:${link.modifierTemplateId}`,
+      name: link.modifierTemplate.name,
+      required: link.modifierTemplate.required,
+      multiSelect: link.modifierTemplate.multiSelect,
+      options: link.modifierTemplate.options.map((option) => ({
         id: option.id,
         name: option.name,
         priceDelta: Number(option.priceDelta),

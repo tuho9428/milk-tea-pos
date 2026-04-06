@@ -105,7 +105,12 @@ export function AddToCartForm({
     };
 
     addToStoredCart(cartItem);
-    router.push(afterAdd === "menu" ? "/menu" : "/cart");
+    if (afterAdd === "menu") {
+      router.replace("/menu");
+      return;
+    }
+
+    router.push("/cart");
   }
 
   return (

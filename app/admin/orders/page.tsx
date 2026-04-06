@@ -130,6 +130,12 @@ export default async function AdminOrdersPage() {
               </div>
               <div className="flex flex-wrap gap-2">
                 <Link
+                  href="/admin/orders/board"
+                  className="rounded-lg border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition-colors hover:bg-stone-100"
+                >
+                  Orders Board
+                </Link>
+                <Link
                   href="/admin/menu"
                   className="rounded-lg border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition-colors hover:bg-stone-100"
                 >
