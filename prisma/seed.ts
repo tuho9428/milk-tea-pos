@@ -14,6 +14,9 @@ const prisma = new PrismaClient({
 });
 
 async function main() {
+  const seededTaxRate = 0.0825;
+  const seededDisplayOrderDateKey = "20260406";
+
   await prisma.orderItemModifier.deleteMany();
   await prisma.orderItem.deleteMany();
   await prisma.order.deleteMany();
@@ -172,10 +175,12 @@ async function main() {
     },
   });
 
-  const seededPricing = calculateOrderPricing(10.40);
+  const seededPricing = calculateOrderPricing(10.40, seededTaxRate);
 
   const order = await prisma.order.create({
     data: {
+      displayOrderNumber: "001",
+      displayOrderDateKey: seededDisplayOrderDateKey,
       customerName: "Walk-in Guest",
       phone: "0000000000",
       status: OrderStatus.PENDING,

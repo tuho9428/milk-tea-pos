@@ -13,6 +13,7 @@ import { formatPrice, formatTaxRate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 const editableStatuses = ["PENDING", "MAKING", "READY", "COMPLETED", "CANCELED"] as const;
+type EditableStatus = (typeof editableStatuses)[number];
 
 const statusStyles = {
   PENDING: "bg-amber-300/20 text-amber-700 ring-1 ring-amber-400/30",
@@ -40,6 +41,10 @@ function formatTimestamp(date: Date) {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(date);
+}
+
+function isEditableStatus(status: string): status is EditableStatus {
+  return editableStatuses.includes(status as EditableStatus);
 }
 
 function Badge({ className, ...props }: ComponentProps<"span">) {
@@ -186,9 +191,7 @@ export function OrderDetailContent({
                   <input type="hidden" name="orderId" value={order.id} />
                   <select
                     name="status"
-                    defaultValue={
-                      editableStatuses.includes(order.status) ? order.status : "PENDING"
-                    }
+                    defaultValue={isEditableStatus(order.status) ? order.status : "PENDING"}
                     className="rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900"
                     aria-label="Update order status"
                   >

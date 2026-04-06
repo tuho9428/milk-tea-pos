@@ -54,9 +54,13 @@ const hasExpectedDelegates =
   hasModifierTemplateOptionSortOrder(globalForPrisma.__prisma) &&
   hasOrderTaxFields(globalForPrisma.__prisma);
 
-export const prisma = hasExpectedDelegates
-  ? globalForPrisma.__prisma
-  : new PrismaClient({ adapter });
+function createPrismaClient() {
+  return new PrismaClient({ adapter });
+}
+
+export const prisma: PrismaClient = hasExpectedDelegates
+  ? globalForPrisma.__prisma!
+  : createPrismaClient();
 
 if (process.env.NODE_ENV !== "production") {
   globalForPrisma.__prisma = prisma;

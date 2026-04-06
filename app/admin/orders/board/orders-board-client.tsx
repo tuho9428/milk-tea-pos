@@ -45,6 +45,12 @@ type OrdersBoardClientProps = {
   initialOrders: BoardOrder[];
 };
 
+type BoardAction = {
+  label: string;
+  status: BoardColumnStatus | "CANCELED";
+  tone?: "primary" | "danger";
+};
+
 function formatTimestamp(dateInput: string) {
   return new Intl.DateTimeFormat("en-US", {
     dateStyle: "medium",
@@ -52,25 +58,25 @@ function formatTimestamp(dateInput: string) {
   }).format(new Date(dateInput));
 }
 
-function getNextActions(status: BoardColumnStatus) {
+function getNextActions(status: BoardColumnStatus): readonly BoardAction[] {
   switch (status) {
     case "PENDING":
       return [
         { label: "Start Making", status: "MAKING", tone: "primary" },
         { label: "Cancel", status: "CANCELED", tone: "danger" },
-      ] as const;
+      ];
     case "MAKING":
       return [
         { label: "Mark Ready", status: "READY", tone: "primary" },
         { label: "Cancel", status: "CANCELED", tone: "danger" },
-      ] as const;
+      ];
     case "READY":
       return [
         { label: "Complete", status: "COMPLETED", tone: "primary" },
-        { label: "Cancel", status: "CANCELED" },
-      ] as const;
+        { label: "Cancel", status: "CANCELED", tone: "danger" },
+      ];
     default:
-      return [] as const;
+      return [];
   }
 }
 
@@ -332,7 +338,9 @@ function BoardCardContent({
 }) {
   const nextActions = getNextActions(order.status);
   const { visibleItems, hiddenCount } = getVisibleItems(order.items);
-  const primaryAction = nextActions.find((action) => action.tone === "primary");
+  const primaryAction = nextActions.find(
+    (action) => "tone" in action && action.tone === "primary",
+  );
   const cancelAction = nextActions.find((action) => action.status === "CANCELED");
 
   return (
