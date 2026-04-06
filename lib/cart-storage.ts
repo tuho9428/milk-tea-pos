@@ -2,13 +2,14 @@ import type { CartItem } from "@/lib/cart";
 
 const CART_STORAGE_KEY = "milk-tea-pos-cart";
 const CART_STORAGE_EVENT = "milk-tea-pos-cart-updated";
+const EMPTY_CART: CartItem[] = [];
 
 let cachedRawValue: string | null | undefined;
-let cachedCart: CartItem[] = [];
+let cachedCart: CartItem[] = EMPTY_CART;
 
 export function getStoredCart(): CartItem[] {
   if (typeof window === "undefined") {
-    return [];
+    return EMPTY_CART;
   }
 
   const rawValue = window.localStorage.getItem(CART_STORAGE_KEY);
@@ -19,8 +20,8 @@ export function getStoredCart(): CartItem[] {
 
   if (!rawValue) {
     cachedRawValue = rawValue;
-    cachedCart = [];
-    return [];
+    cachedCart = EMPTY_CART;
+    return cachedCart;
   }
 
   try {
@@ -28,8 +29,8 @@ export function getStoredCart(): CartItem[] {
 
     if (!Array.isArray(parsed)) {
       cachedRawValue = rawValue;
-      cachedCart = [];
-      return [];
+      cachedCart = EMPTY_CART;
+      return cachedCart;
     }
 
     cachedRawValue = rawValue;
@@ -37,8 +38,8 @@ export function getStoredCart(): CartItem[] {
     return cachedCart;
   } catch {
     cachedRawValue = rawValue;
-    cachedCart = [];
-    return [];
+    cachedCart = EMPTY_CART;
+    return cachedCart;
   }
 }
 
@@ -65,7 +66,7 @@ export function clearStoredCart() {
 
   window.localStorage.removeItem(CART_STORAGE_KEY);
   cachedRawValue = null;
-  cachedCart = [];
+  cachedCart = EMPTY_CART;
   window.dispatchEvent(new Event(CART_STORAGE_EVENT));
 }
 
