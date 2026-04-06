@@ -200,7 +200,9 @@ export default async function AdminOrdersPage() {
                           className="block rounded-lg p-1 transition-colors hover:bg-stone-100"
                         >
                           <div className="space-y-2">
-                            <p className="font-mono text-xs text-stone-500">{order.id}</p>
+                            <p className="font-mono text-xs text-stone-500">
+                              #{order.displayOrderNumber}
+                            </p>
                             <div>
                               <p className="text-sm font-medium text-stone-900">
                                 {order.customerName}

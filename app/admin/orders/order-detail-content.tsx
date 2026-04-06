@@ -70,7 +70,7 @@ export function OrderDetailContent({
                 ADMIN ORDER DETAIL
               </p>
               <CardTitle className="mt-2 text-3xl font-bold text-stone-900">
-                Order {order.id}
+                Order #{order.displayOrderNumber}
               </CardTitle>
               <CardDescription className="mt-1 text-stone-600">
                 Review customer info, totals, and all item modifiers.

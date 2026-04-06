@@ -24,6 +24,7 @@ export type BoardColumnStatus = "PENDING" | "MAKING" | "READY" | "COMPLETED";
 
 export type BoardOrder = {
   id: string;
+  displayOrderNumber: string;
   customerName: string;
   status: BoardColumnStatus;
   total: number;
@@ -346,7 +347,7 @@ function BoardCardContent({
             <div>
               <p className="font-medium text-stone-900">{order.customerName}</p>
               <p className="mt-1 font-mono text-xs text-stone-500">
-                {order.id}
+                #{order.displayOrderNumber}
               </p>
             </div>
             <p className="text-sm font-semibold text-stone-900">
@@ -362,7 +363,7 @@ function BoardCardContent({
               <button
                 type="button"
                 className="min-h-10 min-w-10 rounded-lg border border-stone-300 px-3 py-2 text-xs font-medium text-stone-600 touch-none hover:bg-stone-100"
-                aria-label={`Drag order ${order.id}`}
+                aria-label={`Drag order ${order.displayOrderNumber}`}
                 {...(isMounted ? dragHandleProps : undefined)}
               >
                 Drag

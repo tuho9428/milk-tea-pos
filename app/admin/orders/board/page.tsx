@@ -85,6 +85,7 @@ export default async function AdminOrdersBoardPage({
 
   const serializedOrders: BoardOrder[] = orders.map((order) => ({
     id: order.id,
+    displayOrderNumber: order.displayOrderNumber,
     customerName: order.customerName,
     status: order.status as BoardColumnStatus,
     total: Number(order.total),

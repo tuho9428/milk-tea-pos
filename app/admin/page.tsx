@@ -46,6 +46,7 @@ export default async function AdminDashboardPage() {
         take: 5,
         select: {
           id: true,
+          displayOrderNumber: true,
           customerName: true,
           status: true,
           total: true,
@@ -182,7 +183,7 @@ export default async function AdminDashboardPage() {
                     <div>
                       <p className="font-medium text-stone-900">{order.customerName}</p>
                       <p className="mt-1 text-xs text-stone-500">
-                        {order.id} · {formatTimestamp(order.createdAt)}
+                        #{order.displayOrderNumber} · {formatTimestamp(order.createdAt)}
                       </p>
                     </div>
                     <div className="text-right">
