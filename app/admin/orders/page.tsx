@@ -13,12 +13,12 @@ import { prisma } from "@/lib/prisma";
 import { cn } from "@/lib/utils";
 
 const statusStyles = {
-  PENDING: "bg-amber-300/20 text-amber-200 ring-1 ring-amber-400/30",
-  PAID: "bg-sky-300/20 text-sky-200 ring-1 ring-sky-400/30",
-  MAKING: "bg-violet-300/20 text-violet-200 ring-1 ring-violet-400/30",
-  READY: "bg-emerald-300/20 text-emerald-200 ring-1 ring-emerald-400/30",
-  COMPLETED: "bg-stone-300/20 text-stone-100 ring-1 ring-stone-400/30",
-  CANCELED: "bg-red-300/20 text-red-200 ring-1 ring-red-400/30",
+  PENDING: "border border-amber-300 bg-amber-100 text-amber-900",
+  PAID: "border border-sky-300 bg-sky-100 text-sky-900",
+  MAKING: "border border-violet-300 bg-violet-100 text-violet-900",
+  READY: "border border-emerald-300 bg-emerald-100 text-emerald-900",
+  COMPLETED: "border border-stone-300 bg-stone-200 text-stone-900",
+  CANCELED: "border border-red-300 bg-red-100 text-red-900",
 } as const;
 
 function formatStatusLabel(status: keyof typeof statusStyles) {
@@ -129,6 +129,12 @@ export default async function AdminOrdersPage() {
                 </CardDescription>
               </div>
               <div className="flex flex-wrap gap-2">
+                <Link
+                  href="/admin"
+                  className="rounded-lg border border-stone-300 bg-stone-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-stone-700"
+                >
+                  Admin Dashboard
+                </Link>
                 <Link
                   href="/admin/orders/board"
                   className="rounded-lg border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition-colors hover:bg-stone-100"
