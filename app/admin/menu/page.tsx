@@ -3,6 +3,8 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "lib/prisma";
 import { formatPrice } from "lib/format";
 
+const modifierTypes = ["SIZE", "SUGAR", "ICE", "TOPPING", "OTHER"] as const;
+
 function toSlug(value: string) {
   return value
     .toLowerCase()
@@ -10,6 +12,14 @@ function toSlug(value: string) {
     .replace(/[^a-z0-9\s-]/g, "")
     .replace(/\s+/g, "-")
     .replace(/-+/g, "-");
+}
+
+function revalidateMenuPaths(menuSlug?: string) {
+  revalidatePath("/admin/menu");
+  revalidatePath("/menu");
+  if (menuSlug) {
+    revalidatePath(`/menu/${menuSlug}`);
+  }
 }
 
 async function addDrinkAction(formData: FormData) {
@@ -45,8 +55,7 @@ async function addDrinkAction(formData: FormData) {
     },
   });
 
-  revalidatePath("/admin/menu");
-  revalidatePath("/menu");
+  revalidateMenuPaths(slug);
 }
 
 async function editDrinkAction(formData: FormData) {
@@ -84,14 +93,14 @@ async function editDrinkAction(formData: FormData) {
     },
   });
 
-  revalidatePath("/admin/menu");
-  revalidatePath("/menu");
+  revalidateMenuPaths(slug);
 }
 
 async function toggleSoldOutAction(formData: FormData) {
   "use server";
 
   const id = String(formData.get("id") ?? "");
+  const menuSlug = String(formData.get("menuSlug") ?? "");
   const current = String(formData.get("current") ?? "") === "true";
 
   if (!id) {
@@ -103,15 +112,359 @@ async function toggleSoldOutAction(formData: FormData) {
     data: { isSoldOut: !current },
   });
 
-  revalidatePath("/admin/menu");
-  revalidatePath("/menu");
+  revalidateMenuPaths(menuSlug);
+}
+
+async function addModifierGroupAction(formData: FormData) {
+  "use server";
+
+  const menuItemId = String(formData.get("menuItemId") ?? "");
+  const menuSlug = String(formData.get("menuSlug") ?? "");
+  const name = String(formData.get("name") ?? "").trim();
+  const type = String(formData.get("type") ?? "");
+  const required = String(formData.get("required") ?? "") === "on";
+  const multiSelect = String(formData.get("multiSelect") ?? "") === "on";
+
+  if (!menuItemId || !name || !modifierTypes.includes(type as (typeof modifierTypes)[number])) {
+    return;
+  }
+
+  await prisma.modifierGroup.create({
+    data: {
+      menuItemId,
+      name,
+      type: type as (typeof modifierTypes)[number],
+      required,
+      multiSelect,
+    },
+  });
+
+  revalidateMenuPaths(menuSlug);
+}
+
+async function editModifierGroupAction(formData: FormData) {
+  "use server";
+
+  const id = String(formData.get("id") ?? "");
+  const menuSlug = String(formData.get("menuSlug") ?? "");
+  const name = String(formData.get("name") ?? "").trim();
+  const type = String(formData.get("type") ?? "");
+  const required = String(formData.get("required") ?? "") === "on";
+  const multiSelect = String(formData.get("multiSelect") ?? "") === "on";
+
+  if (!id || !name || !modifierTypes.includes(type as (typeof modifierTypes)[number])) {
+    return;
+  }
+
+  await prisma.modifierGroup.update({
+    where: { id },
+    data: {
+      name,
+      type: type as (typeof modifierTypes)[number],
+      required,
+      multiSelect,
+    },
+  });
+
+  revalidateMenuPaths(menuSlug);
+}
+
+async function deleteModifierGroupAction(formData: FormData) {
+  "use server";
+
+  const id = String(formData.get("id") ?? "");
+  const menuSlug = String(formData.get("menuSlug") ?? "");
+
+  if (!id) {
+    return;
+  }
+
+  await prisma.$transaction([
+    prisma.modifierOption.deleteMany({
+      where: { modifierGroupId: id },
+    }),
+    prisma.modifierGroup.delete({
+      where: { id },
+    }),
+  ]);
+
+  revalidateMenuPaths(menuSlug);
+}
+
+async function addModifierOptionAction(formData: FormData) {
+  "use server";
+
+  const modifierGroupId = String(formData.get("modifierGroupId") ?? "");
+  const menuSlug = String(formData.get("menuSlug") ?? "");
+  const name = String(formData.get("name") ?? "").trim();
+  const priceDelta = Number(formData.get("priceDelta") ?? 0);
+
+  if (!modifierGroupId || !name || !Number.isFinite(priceDelta)) {
+    return;
+  }
+
+  await prisma.modifierOption.create({
+    data: {
+      modifierGroupId,
+      name,
+      priceDelta,
+    },
+  });
+
+  revalidateMenuPaths(menuSlug);
+}
+
+async function editModifierOptionAction(formData: FormData) {
+  "use server";
+
+  const id = String(formData.get("id") ?? "");
+  const menuSlug = String(formData.get("menuSlug") ?? "");
+  const name = String(formData.get("name") ?? "").trim();
+  const priceDelta = Number(formData.get("priceDelta") ?? 0);
+
+  if (!id || !name || !Number.isFinite(priceDelta)) {
+    return;
+  }
+
+  await prisma.modifierOption.update({
+    where: { id },
+    data: {
+      name,
+      priceDelta,
+    },
+  });
+
+  revalidateMenuPaths(menuSlug);
+}
+
+async function deleteModifierOptionAction(formData: FormData) {
+  "use server";
+
+  const id = String(formData.get("id") ?? "");
+  const menuSlug = String(formData.get("menuSlug") ?? "");
+
+  if (!id) {
+    return;
+  }
+
+  await prisma.modifierOption.delete({
+    where: { id },
+  });
+
+  revalidateMenuPaths(menuSlug);
+}
+
+async function addModifierTemplateAction(formData: FormData) {
+  "use server";
+
+  const name = String(formData.get("name") ?? "").trim();
+  const type = String(formData.get("type") ?? "");
+  const required = String(formData.get("required") ?? "") === "on";
+  const multiSelect = String(formData.get("multiSelect") ?? "") === "on";
+
+  if (!name || !modifierTypes.includes(type as (typeof modifierTypes)[number])) {
+    return;
+  }
+
+  await prisma.modifierTemplate.create({
+    data: {
+      name,
+      type: type as (typeof modifierTypes)[number],
+      required,
+      multiSelect,
+    },
+  });
+
+  revalidateMenuPaths();
+}
+
+async function editModifierTemplateAction(formData: FormData) {
+  "use server";
+
+  const id = String(formData.get("id") ?? "");
+  const name = String(formData.get("name") ?? "").trim();
+  const type = String(formData.get("type") ?? "");
+  const required = String(formData.get("required") ?? "") === "on";
+  const multiSelect = String(formData.get("multiSelect") ?? "") === "on";
+
+  if (!id || !name || !modifierTypes.includes(type as (typeof modifierTypes)[number])) {
+    return;
+  }
+
+  await prisma.modifierTemplate.update({
+    where: { id },
+    data: {
+      name,
+      type: type as (typeof modifierTypes)[number],
+      required,
+      multiSelect,
+    },
+  });
+
+  revalidateMenuPaths();
+}
+
+async function deleteModifierTemplateAction(formData: FormData) {
+  "use server";
+
+  const id = String(formData.get("id") ?? "");
+
+  if (!id) {
+    return;
+  }
+
+  await prisma.modifierTemplate.delete({
+    where: { id },
+  });
+
+  revalidateMenuPaths();
+}
+
+async function addModifierTemplateOptionAction(formData: FormData) {
+  "use server";
+
+  const modifierTemplateId = String(formData.get("modifierTemplateId") ?? "");
+  const name = String(formData.get("name") ?? "").trim();
+  const priceDelta = Number(formData.get("priceDelta") ?? 0);
+
+  if (!modifierTemplateId || !name || !Number.isFinite(priceDelta)) {
+    return;
+  }
+
+  await prisma.modifierTemplateOption.create({
+    data: {
+      modifierTemplateId,
+      name,
+      priceDelta,
+    },
+  });
+
+  revalidateMenuPaths();
+}
+
+async function editModifierTemplateOptionAction(formData: FormData) {
+  "use server";
+
+  const id = String(formData.get("id") ?? "");
+  const name = String(formData.get("name") ?? "").trim();
+  const priceDelta = Number(formData.get("priceDelta") ?? 0);
+
+  if (!id || !name || !Number.isFinite(priceDelta)) {
+    return;
+  }
+
+  await prisma.modifierTemplateOption.update({
+    where: { id },
+    data: {
+      name,
+      priceDelta,
+    },
+  });
+
+  revalidateMenuPaths();
+}
+
+async function deleteModifierTemplateOptionAction(formData: FormData) {
+  "use server";
+
+  const id = String(formData.get("id") ?? "");
+
+  if (!id) {
+    return;
+  }
+
+  await prisma.modifierTemplateOption.delete({
+    where: { id },
+  });
+
+  revalidateMenuPaths();
+}
+
+async function applyModifierTemplateToDrinkAction(formData: FormData) {
+  "use server";
+
+  const menuItemId = String(formData.get("menuItemId") ?? "");
+  const templateId = String(formData.get("templateId") ?? "");
+  const menuSlug = String(formData.get("menuSlug") ?? "");
+
+  if (!menuItemId || !templateId) {
+    return;
+  }
+
+  const template = await prisma.modifierTemplate.findUnique({
+    where: { id: templateId },
+    include: {
+      options: {
+        orderBy: { name: "asc" },
+      },
+    },
+  });
+
+  if (!template) {
+    return;
+  }
+
+  const existingGroup = await prisma.modifierGroup.findFirst({
+    where: {
+      menuItemId,
+      templateId,
+    },
+    select: { id: true },
+  });
+
+  if (existingGroup) {
+    return;
+  }
+
+  await prisma.modifierGroup.create({
+    data: {
+      menuItemId,
+      templateId: template.id,
+      name: template.name,
+      type: template.type,
+      required: template.required,
+      multiSelect: template.multiSelect,
+      options: {
+        create: template.options.map((option) => ({
+          name: option.name,
+          priceDelta: option.priceDelta,
+        })),
+      },
+    },
+  });
+
+  revalidateMenuPaths(menuSlug);
 }
 
 export default async function AdminMenuPage() {
-  const [categories, drinks] = await Promise.all([
+  const [categories, templates, drinks] = await Promise.all([
     prisma.category.findMany({ orderBy: { name: "asc" } }),
+    prisma.modifierTemplate.findMany({
+      include: {
+        options: {
+          orderBy: { name: "asc" },
+        },
+      },
+      orderBy: { name: "asc" },
+    }),
     prisma.menuItem.findMany({
-      include: { category: true },
+      include: {
+        category: true,
+        groups: {
+          include: {
+            options: {
+              orderBy: { name: "asc" },
+            },
+            template: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+          orderBy: { name: "asc" },
+        },
+      },
       orderBy: [{ category: { name: "asc" } }, { name: "asc" }],
     }),
   ]);
@@ -138,6 +491,214 @@ export default async function AdminMenuPage() {
             </Link>
           </div>
         </header>
+
+        <section className="rounded-2xl border border-stone-700 bg-stone-900/80 p-5">
+          <h2 className="text-xl font-semibold text-white">Modifier Templates</h2>
+          <p className="mt-1 text-sm text-stone-400">
+            Create shared presets like Size, Sugar Level, and Ice Level. Applying a
+            template clones it into a menu item so the current ordering flow stays
+            compatible.
+          </p>
+
+          <form
+            action={addModifierTemplateAction}
+            className="mt-4 grid gap-3 rounded-xl border border-dashed border-stone-600 bg-stone-950 p-4 sm:grid-cols-2 lg:grid-cols-4"
+          >
+            <input
+              name="name"
+              placeholder="Template name"
+              className="rounded-lg border border-stone-600 bg-stone-900 px-3 py-2 text-sm outline-none ring-amber-300 focus:ring-2"
+              required
+            />
+            <select
+              name="type"
+              defaultValue="OTHER"
+              className="rounded-lg border border-stone-600 bg-stone-900 px-3 py-2 text-sm outline-none ring-amber-300 focus:ring-2"
+            >
+              {modifierTypes.map((type) => (
+                <option key={type} value={type}>
+                  {type}
+                </option>
+              ))}
+            </select>
+            <label className="inline-flex items-center gap-2 rounded-lg border border-stone-600 bg-stone-900 px-3 py-2 text-sm text-stone-300">
+              <input
+                name="required"
+                type="checkbox"
+                className="h-4 w-4 rounded border-stone-500 bg-stone-900"
+              />
+              Required
+            </label>
+            <label className="inline-flex items-center gap-2 rounded-lg border border-stone-600 bg-stone-900 px-3 py-2 text-sm text-stone-300">
+              <input
+                name="multiSelect"
+                type="checkbox"
+                className="h-4 w-4 rounded border-stone-500 bg-stone-900"
+              />
+              Multi-select
+            </label>
+            <button
+              type="submit"
+              className="lg:col-span-4 rounded-lg bg-amber-300 px-4 py-2 text-sm font-bold text-stone-900 hover:bg-amber-200"
+            >
+              Add Template
+            </button>
+          </form>
+
+          <div className="mt-4 space-y-4">
+            {templates.length === 0 ? (
+              <p className="text-sm text-stone-400">No templates created yet.</p>
+            ) : (
+              templates.map((template) => (
+                <section
+                  key={template.id}
+                  className="rounded-xl border border-stone-700 bg-stone-950 p-4"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <form
+                      action={editModifierTemplateAction}
+                      className="grid flex-1 gap-3 sm:grid-cols-2 lg:grid-cols-4"
+                    >
+                      <input type="hidden" name="id" value={template.id} />
+                      <input
+                        name="name"
+                        defaultValue={template.name}
+                        className="rounded-lg border border-stone-600 bg-stone-900 px-3 py-2 text-sm outline-none ring-amber-300 focus:ring-2"
+                        required
+                      />
+                      <select
+                        name="type"
+                        defaultValue={template.type}
+                        className="rounded-lg border border-stone-600 bg-stone-900 px-3 py-2 text-sm outline-none ring-amber-300 focus:ring-2"
+                      >
+                        {modifierTypes.map((type) => (
+                          <option key={type} value={type}>
+                            {type}
+                          </option>
+                        ))}
+                      </select>
+                      <label className="inline-flex items-center gap-2 rounded-lg border border-stone-600 bg-stone-900 px-3 py-2 text-sm text-stone-300">
+                        <input
+                          name="required"
+                          type="checkbox"
+                          defaultChecked={template.required}
+                          className="h-4 w-4 rounded border-stone-500 bg-stone-900"
+                        />
+                        Required
+                      </label>
+                      <label className="inline-flex items-center gap-2 rounded-lg border border-stone-600 bg-stone-900 px-3 py-2 text-sm text-stone-300">
+                        <input
+                          name="multiSelect"
+                          type="checkbox"
+                          defaultChecked={template.multiSelect}
+                          className="h-4 w-4 rounded border-stone-500 bg-stone-900"
+                        />
+                        Multi-select
+                      </label>
+                      <button
+                        type="submit"
+                        className="rounded-lg border border-stone-500 px-3 py-2 text-sm font-semibold text-white hover:bg-stone-800 lg:col-span-3"
+                      >
+                        Save Template
+                      </button>
+                    </form>
+
+                    <form action={deleteModifierTemplateAction}>
+                      <input type="hidden" name="id" value={template.id} />
+                      <button
+                        type="submit"
+                        className="rounded-lg bg-red-300 px-3 py-2 text-sm font-semibold text-red-950 hover:bg-red-200"
+                      >
+                        Delete Template
+                      </button>
+                    </form>
+                  </div>
+
+                  <div className="mt-4 space-y-3">
+                    <p className="text-sm font-medium text-stone-300">Template Options</p>
+
+                    {template.options.length === 0 ? (
+                      <p className="text-sm text-stone-500">
+                        No options yet in this template.
+                      </p>
+                    ) : (
+                      template.options.map((option) => (
+                        <div
+                          key={option.id}
+                          className="flex flex-wrap items-start gap-3 rounded-lg border border-stone-700 bg-stone-900 p-3"
+                        >
+                          <form
+                            action={editModifierTemplateOptionAction}
+                            className="grid flex-1 gap-3 sm:grid-cols-[minmax(0,1fr)_180px_auto]"
+                          >
+                            <input type="hidden" name="id" value={option.id} />
+                            <input
+                              name="name"
+                              defaultValue={option.name}
+                              className="rounded-lg border border-stone-600 bg-stone-950 px-3 py-2 text-sm outline-none ring-amber-300 focus:ring-2"
+                              required
+                            />
+                            <input
+                              name="priceDelta"
+                              type="number"
+                              step="0.01"
+                              defaultValue={Number(option.priceDelta)}
+                              className="rounded-lg border border-stone-600 bg-stone-950 px-3 py-2 text-sm outline-none ring-amber-300 focus:ring-2"
+                              required
+                            />
+                            <button
+                              type="submit"
+                              className="rounded-lg border border-stone-500 px-3 py-2 text-sm font-semibold text-white hover:bg-stone-800"
+                            >
+                              Save Option
+                            </button>
+                          </form>
+
+                          <form action={deleteModifierTemplateOptionAction}>
+                            <input type="hidden" name="id" value={option.id} />
+                            <button
+                              type="submit"
+                              className="rounded-lg bg-red-300 px-3 py-2 text-sm font-semibold text-red-950 hover:bg-red-200"
+                            >
+                              Delete
+                            </button>
+                          </form>
+                        </div>
+                      ))
+                    )}
+
+                    <form
+                      action={addModifierTemplateOptionAction}
+                      className="grid gap-3 rounded-lg border border-dashed border-stone-600 bg-stone-900 p-3 sm:grid-cols-[minmax(0,1fr)_180px_auto]"
+                    >
+                      <input type="hidden" name="modifierTemplateId" value={template.id} />
+                      <input
+                        name="name"
+                        placeholder="New option name"
+                        className="rounded-lg border border-stone-600 bg-stone-950 px-3 py-2 text-sm outline-none ring-amber-300 focus:ring-2"
+                        required
+                      />
+                      <input
+                        name="priceDelta"
+                        type="number"
+                        step="0.01"
+                        defaultValue="0"
+                        className="rounded-lg border border-stone-600 bg-stone-950 px-3 py-2 text-sm outline-none ring-amber-300 focus:ring-2"
+                        required
+                      />
+                      <button
+                        type="submit"
+                        className="rounded-lg bg-amber-300 px-3 py-2 text-sm font-bold text-stone-900 hover:bg-amber-200"
+                      >
+                        Add Option
+                      </button>
+                    </form>
+                  </div>
+                </section>
+              ))
+            )}
+          </div>
+        </section>
 
         <section className="rounded-2xl border border-stone-700 bg-stone-900/80 p-5">
           <h2 className="text-xl font-semibold text-white">Add Drink</h2>
@@ -284,6 +845,283 @@ export default async function AdminMenuPage() {
                   </div>
                 </form>
 
+                <section className="mt-4 rounded-xl border border-stone-700 bg-stone-900 p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <h3 className="text-base font-semibold text-white">Modifier Groups</h3>
+                      <p className="text-sm text-stone-400">
+                        Mix reusable templates with item-specific groups.
+                      </p>
+                    </div>
+                    <span className="rounded-full bg-stone-800 px-3 py-1 text-xs font-semibold text-stone-300">
+                      {drink.groups.length} group{drink.groups.length === 1 ? "" : "s"}
+                    </span>
+                  </div>
+
+                  <div className="mt-4 grid gap-3 rounded-xl border border-dashed border-stone-600 bg-stone-950 p-4 lg:grid-cols-[minmax(0,1fr)_auto]">
+                    <form
+                      action={applyModifierTemplateToDrinkAction}
+                      className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]"
+                    >
+                      <input type="hidden" name="menuItemId" value={drink.id} />
+                      <input type="hidden" name="menuSlug" value={drink.slug} />
+                      <select
+                        name="templateId"
+                        className="rounded-lg border border-stone-600 bg-stone-900 px-3 py-2 text-sm outline-none ring-amber-300 focus:ring-2"
+                        defaultValue=""
+                        required
+                      >
+                        <option value="" disabled>
+                          Attach a reusable modifier template
+                        </option>
+                        {templates.map((template) => (
+                          <option key={template.id} value={template.id}>
+                            {template.name} ({template.options.length} option
+                            {template.options.length === 1 ? "" : "s"})
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="submit"
+                        className="rounded-lg bg-amber-300 px-4 py-2 text-sm font-bold text-stone-900 hover:bg-amber-200"
+                      >
+                        Apply Template
+                      </button>
+                    </form>
+                    {templates.length === 0 ? (
+                      <p className="text-sm text-stone-500">
+                        Create templates above to reuse common modifier sets.
+                      </p>
+                    ) : null}
+                  </div>
+
+                  <form
+                    action={addModifierGroupAction}
+                    className="mt-4 grid gap-3 rounded-xl border border-dashed border-stone-600 bg-stone-950 p-4 sm:grid-cols-2 lg:grid-cols-4"
+                  >
+                    <input type="hidden" name="menuItemId" value={drink.id} />
+                    <input type="hidden" name="menuSlug" value={drink.slug} />
+                    <input
+                      name="name"
+                      placeholder="New group name"
+                      className="rounded-lg border border-stone-600 bg-stone-900 px-3 py-2 text-sm outline-none ring-amber-300 focus:ring-2"
+                      required
+                    />
+                    <select
+                      name="type"
+                      defaultValue="OTHER"
+                      className="rounded-lg border border-stone-600 bg-stone-900 px-3 py-2 text-sm outline-none ring-amber-300 focus:ring-2"
+                    >
+                      {modifierTypes.map((type) => (
+                        <option key={type} value={type}>
+                          {type}
+                        </option>
+                      ))}
+                    </select>
+                    <label className="inline-flex items-center gap-2 rounded-lg border border-stone-600 bg-stone-900 px-3 py-2 text-sm text-stone-300">
+                      <input
+                        name="required"
+                        type="checkbox"
+                        className="h-4 w-4 rounded border-stone-500 bg-stone-900"
+                      />
+                      Required
+                    </label>
+                    <label className="inline-flex items-center gap-2 rounded-lg border border-stone-600 bg-stone-900 px-3 py-2 text-sm text-stone-300">
+                      <input
+                        name="multiSelect"
+                        type="checkbox"
+                        className="h-4 w-4 rounded border-stone-500 bg-stone-900"
+                      />
+                      Multi-select
+                    </label>
+                    <button
+                      type="submit"
+                      className="lg:col-span-4 rounded-lg bg-amber-300 px-4 py-2 text-sm font-bold text-stone-900 hover:bg-amber-200"
+                    >
+                      Add Modifier Group
+                    </button>
+                  </form>
+
+                  <div className="mt-4 space-y-4">
+                    {drink.groups.length === 0 ? (
+                      <p className="text-sm text-stone-400">
+                        No modifier groups yet for this menu item.
+                      </p>
+                    ) : (
+                      drink.groups.map((group) => (
+                        <section
+                          key={group.id}
+                          className="rounded-xl border border-stone-700 bg-stone-950 p-4"
+                        >
+                          <div className="mb-3 flex flex-wrap items-center gap-2">
+                            {group.template ? (
+                              <span className="rounded-full bg-amber-200/20 px-3 py-1 text-xs font-semibold text-amber-200">
+                                From template: {group.template.name}
+                              </span>
+                            ) : (
+                              <span className="rounded-full bg-stone-800 px-3 py-1 text-xs font-semibold text-stone-300">
+                                Custom group
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="flex flex-wrap items-start justify-between gap-3">
+                            <form
+                              action={editModifierGroupAction}
+                              className="grid flex-1 gap-3 sm:grid-cols-2 lg:grid-cols-4"
+                            >
+                              <input type="hidden" name="id" value={group.id} />
+                              <input type="hidden" name="menuSlug" value={drink.slug} />
+                              <input
+                                name="name"
+                                defaultValue={group.name}
+                                className="rounded-lg border border-stone-600 bg-stone-900 px-3 py-2 text-sm outline-none ring-amber-300 focus:ring-2"
+                                required
+                              />
+                              <select
+                                name="type"
+                                defaultValue={group.type}
+                                className="rounded-lg border border-stone-600 bg-stone-900 px-3 py-2 text-sm outline-none ring-amber-300 focus:ring-2"
+                              >
+                                {modifierTypes.map((type) => (
+                                  <option key={type} value={type}>
+                                    {type}
+                                  </option>
+                                ))}
+                              </select>
+                              <label className="inline-flex items-center gap-2 rounded-lg border border-stone-600 bg-stone-900 px-3 py-2 text-sm text-stone-300">
+                                <input
+                                  name="required"
+                                  type="checkbox"
+                                  defaultChecked={group.required}
+                                  className="h-4 w-4 rounded border-stone-500 bg-stone-900"
+                                />
+                                Required
+                              </label>
+                              <label className="inline-flex items-center gap-2 rounded-lg border border-stone-600 bg-stone-900 px-3 py-2 text-sm text-stone-300">
+                                <input
+                                  name="multiSelect"
+                                  type="checkbox"
+                                  defaultChecked={group.multiSelect}
+                                  className="h-4 w-4 rounded border-stone-500 bg-stone-900"
+                                />
+                                Multi-select
+                              </label>
+                              <button
+                                type="submit"
+                                className="rounded-lg border border-stone-500 px-3 py-2 text-sm font-semibold text-white hover:bg-stone-800 lg:col-span-3"
+                              >
+                                Save Group
+                              </button>
+                            </form>
+
+                            <form action={deleteModifierGroupAction}>
+                              <input type="hidden" name="id" value={group.id} />
+                              <input type="hidden" name="menuSlug" value={drink.slug} />
+                              <button
+                                type="submit"
+                                className="rounded-lg bg-red-300 px-3 py-2 text-sm font-semibold text-red-950 hover:bg-red-200"
+                              >
+                                Delete Group
+                              </button>
+                            </form>
+                          </div>
+
+                          <div className="mt-4 space-y-3">
+                            <p className="text-sm font-medium text-stone-300">
+                              Options
+                            </p>
+
+                            {group.options.length === 0 ? (
+                              <p className="text-sm text-stone-500">
+                                No options yet in this group.
+                              </p>
+                            ) : (
+                              group.options.map((option) => (
+                                <div
+                                  key={option.id}
+                                  className="flex flex-wrap items-start gap-3 rounded-lg border border-stone-700 bg-stone-900 p-3"
+                                >
+                                  <form
+                                    action={editModifierOptionAction}
+                                    className="grid flex-1 gap-3 sm:grid-cols-[minmax(0,1fr)_180px_auto]"
+                                  >
+                                    <input type="hidden" name="id" value={option.id} />
+                                    <input type="hidden" name="menuSlug" value={drink.slug} />
+                                    <input
+                                      name="name"
+                                      defaultValue={option.name}
+                                      className="rounded-lg border border-stone-600 bg-stone-950 px-3 py-2 text-sm outline-none ring-amber-300 focus:ring-2"
+                                      required
+                                    />
+                                    <input
+                                      name="priceDelta"
+                                      type="number"
+                                      step="0.01"
+                                      defaultValue={Number(option.priceDelta)}
+                                      className="rounded-lg border border-stone-600 bg-stone-950 px-3 py-2 text-sm outline-none ring-amber-300 focus:ring-2"
+                                      required
+                                    />
+                                    <button
+                                      type="submit"
+                                      className="rounded-lg border border-stone-500 px-3 py-2 text-sm font-semibold text-white hover:bg-stone-800"
+                                    >
+                                      Save Option
+                                    </button>
+                                  </form>
+
+                                  <form action={deleteModifierOptionAction}>
+                                    <input type="hidden" name="id" value={option.id} />
+                                    <input type="hidden" name="menuSlug" value={drink.slug} />
+                                    <button
+                                      type="submit"
+                                      className="rounded-lg bg-red-300 px-3 py-2 text-sm font-semibold text-red-950 hover:bg-red-200"
+                                    >
+                                      Delete
+                                    </button>
+                                  </form>
+                                </div>
+                              ))
+                            )}
+
+                            <form
+                              action={addModifierOptionAction}
+                              className="grid gap-3 rounded-lg border border-dashed border-stone-600 bg-stone-900 p-3 sm:grid-cols-[minmax(0,1fr)_180px_auto]"
+                            >
+                              <input
+                                type="hidden"
+                                name="modifierGroupId"
+                                value={group.id}
+                              />
+                              <input type="hidden" name="menuSlug" value={drink.slug} />
+                              <input
+                                name="name"
+                                placeholder="New option name"
+                                className="rounded-lg border border-stone-600 bg-stone-950 px-3 py-2 text-sm outline-none ring-amber-300 focus:ring-2"
+                                required
+                              />
+                              <input
+                                name="priceDelta"
+                                type="number"
+                                step="0.01"
+                                defaultValue="0"
+                                className="rounded-lg border border-stone-600 bg-stone-950 px-3 py-2 text-sm outline-none ring-amber-300 focus:ring-2"
+                                required
+                              />
+                              <button
+                                type="submit"
+                                className="rounded-lg bg-amber-300 px-3 py-2 text-sm font-bold text-stone-900 hover:bg-amber-200"
+                              >
+                                Add Option
+                              </button>
+                            </form>
+                          </div>
+                        </section>
+                      ))
+                    )}
+                  </div>
+                </section>
+
                 {drink.tags.length > 0 ? (
                   <div className="mt-3 flex flex-wrap gap-2">
                     {drink.tags.map((tag) => (
@@ -299,6 +1137,7 @@ export default async function AdminMenuPage() {
 
                 <form action={toggleSoldOutAction} className="mt-3">
                   <input type="hidden" name="id" value={drink.id} />
+                  <input type="hidden" name="menuSlug" value={drink.slug} />
                   <input type="hidden" name="current" value={String(drink.isSoldOut)} />
                   <button
                     type="submit"

@@ -30,6 +30,8 @@ const hasExpectedDelegates =
   !!globalForPrisma.__prisma &&
   "menuItem" in globalForPrisma.__prisma &&
   "category" in globalForPrisma.__prisma &&
+  "modifierTemplate" in globalForPrisma.__prisma &&
+  "modifierTemplateOption" in globalForPrisma.__prisma &&
   hasOrderTaxFields(globalForPrisma.__prisma);
 
 export const prisma = hasExpectedDelegates
