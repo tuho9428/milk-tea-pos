@@ -2,7 +2,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { ProductDetailContent } from "@/app/menu/[slug]/product-detail-content";
+import { buttonVariants } from "@/components/ui/button-variants";
 import { getProductDetailBySlug } from "@/app/menu/[slug]/product-detail-data";
+import { cn } from "@/lib/utils";
 
 type DrinkDetailPageProps = {
   params: Promise<{ slug: string }>;
@@ -17,11 +19,11 @@ export default async function DrinkDetailPage({ params }: DrinkDetailPageProps) 
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-stone-950 via-stone-900 to-black px-6 py-10 text-stone-100">
-      <div className="mx-auto max-w-5xl">
+    <main className="page-shell">
+      <div className="page-wrap">
         <Link
           href="/menu"
-          className="mb-6 inline-flex rounded-lg border border-stone-600 px-3 py-2 text-sm font-medium text-stone-100 hover:bg-stone-800"
+          className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
         >
           Back to Menu
         </Link>

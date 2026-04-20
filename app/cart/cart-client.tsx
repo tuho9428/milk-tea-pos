@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useSyncExternalStore } from "react";
 
+import { buttonVariants } from "@/components/ui/button-variants";
 import {
   calculateCartLineTotal,
   calculateCartLineUnitPrice,
@@ -16,6 +17,7 @@ import {
   updateStoredCartItemQuantity,
 } from "@/lib/cart-storage";
 import { formatPrice } from "@/lib/format";
+import { cn } from "@/lib/utils";
 
 export function CartClient() {
   const rows = useSyncExternalStore(subscribeToStoredCart, getStoredCart, () => []);
@@ -25,32 +27,45 @@ export function CartClient() {
   const itemCount = getCartItemCount(rows);
 
   return (
-    <div className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-3">
-      <section className="lg:col-span-2">
-        <header className="mb-4 flex items-center justify-between">
-          <h1 className="text-3xl font-bold text-stone-900">Cart</h1>
-          <Link href="/menu" className="text-sm font-medium text-stone-600 underline">
-            Continue Shopping
-          </Link>
+    <div className="page-wrap-wide grid gap-6 lg:grid-cols-[1.5fr_0.8fr]">
+      <section className="space-y-4">
+        <header className="hero-panel px-6 py-6 sm:px-7">
+          <div className="relative z-10 flex flex-wrap items-end justify-between gap-4">
+            <div className="max-w-2xl space-y-3">
+              <p className="eyebrow">Your Order</p>
+              <div className="space-y-2">
+                <h1 className="page-title">Cart</h1>
+                <p className="page-description">
+                  Review quantities, selected modifiers, and your current subtotal.
+                </p>
+              </div>
+            </div>
+            <Link
+              href="/menu"
+              className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+            >
+              Continue Shopping
+            </Link>
+          </div>
         </header>
 
         {rows.length === 0 ? (
-          <div className="rounded-xl border border-stone-200 bg-white p-5 text-stone-600">
-            Your cart is empty.
+          <div className="section-card p-6">
+            <p className="text-sm text-muted-foreground">Your cart is empty.</p>
           </div>
         ) : (
           <div className="space-y-4">
             {rows.map((row, index) => (
-              <article
-                key={`${row.menuItemId}-${index}`}
-                className="rounded-xl border border-stone-200 bg-white p-5"
-              >
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <h2 className="text-lg font-semibold text-stone-900">{row.name}</h2>
-                    <p className="mt-1 text-sm text-stone-600">Cart item</p>
+              <article key={`${row.menuItemId}-${index}`} className="section-card p-5">
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div className="min-w-0 flex-1 space-y-2">
+                    <div className="space-y-1">
+                      <h2 className="text-lg font-semibold text-foreground">{row.name}</h2>
+                      <p className="text-sm text-muted-foreground">Cart item</p>
+                    </div>
+
                     {row.selectedModifiers.length > 0 ? (
-                      <ul className="mt-2 space-y-1 text-sm text-stone-500">
+                      <ul className="space-y-1 text-sm text-muted-foreground">
                         {row.selectedModifiers.map((modifier) => (
                           <li key={`${row.menuItemId}-${index}-${modifier.name}`}>
                             {modifier.name}
@@ -62,29 +77,34 @@ export function CartClient() {
                       </ul>
                     ) : null}
                   </div>
-                  <p className="text-sm font-semibold text-stone-700">
-                    {formatPrice(calculateCartLineUnitPrice(row))}
-                  </p>
+                  <div className="text-right">
+                    <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
+                      Unit Price
+                    </p>
+                    <p className="mt-1 text-sm font-semibold text-foreground">
+                      {formatPrice(calculateCartLineUnitPrice(row))}
+                    </p>
+                  </div>
                 </div>
 
-                <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="inline-flex items-center rounded-lg border border-stone-300">
+                <div className="mt-5 flex flex-wrap items-center justify-between gap-4 border-t border-border pt-4">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <div className="inline-flex items-center rounded-full border border-border bg-secondary/45 shadow-sm">
                       <button
                         type="button"
                         onClick={() => updateStoredCartItemQuantity(index, row.quantity - 1)}
-                        className="px-3 py-1 text-stone-700 hover:bg-stone-100"
+                        className="px-4 py-2 text-foreground transition hover:bg-secondary"
                         aria-label={`Decrease quantity for ${row.name}`}
                       >
                         -
                       </button>
-                      <span className="min-w-10 px-3 py-1 text-center font-medium text-stone-900">
+                      <span className="min-w-12 px-4 py-2 text-center font-medium text-foreground">
                         {row.quantity}
                       </span>
                       <button
                         type="button"
                         onClick={() => updateStoredCartItemQuantity(index, row.quantity + 1)}
-                        className="px-3 py-1 text-stone-700 hover:bg-stone-100"
+                        className="px-4 py-2 text-foreground transition hover:bg-secondary"
                         aria-label={`Increase quantity for ${row.name}`}
                       >
                         +
@@ -93,14 +113,19 @@ export function CartClient() {
                     <button
                       type="button"
                       onClick={() => removeStoredCartItem(index)}
-                      className="text-sm font-medium text-red-600 hover:text-red-700"
+                      className="status-pill status-danger"
                     >
                       Remove
                     </button>
                   </div>
-                  <p className="text-lg font-bold text-stone-900">
-                    {formatPrice(calculateCartLineTotal(row))}
-                  </p>
+                  <div className="text-right">
+                    <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
+                      Line Total
+                    </p>
+                    <p className="mt-1 text-lg font-semibold text-foreground">
+                      {formatPrice(calculateCartLineTotal(row))}
+                    </p>
+                  </div>
                 </div>
               </article>
             ))}
@@ -108,44 +133,45 @@ export function CartClient() {
         )}
       </section>
 
-      {rows.length > 0 ? (
-        <aside className="h-fit rounded-xl border border-stone-200 bg-white p-5">
-          <h2 className="text-lg font-semibold text-stone-900">Order Summary</h2>
-          <p className="mt-1 text-sm text-stone-500">
-            {itemCount} item{itemCount === 1 ? "" : "s"} in cart
+      <aside className="section-card h-fit p-5">
+        <div className="space-y-2">
+          <p className="eyebrow">Summary</p>
+          <h2 className="section-title">Order Summary</h2>
+          <p className="text-sm text-muted-foreground">
+            {rows.length > 0
+              ? `${itemCount} item${itemCount === 1 ? "" : "s"} in cart`
+              : "Add a drink from the menu to start your order."}
           </p>
-          <dl className="mt-4 space-y-3 text-sm">
-            <div className="flex justify-between text-stone-600">
-              <dt>Subtotal</dt>
-              <dd>{formatPrice(subtotal)}</dd>
-            </div>
-            <div className="flex justify-between border-t border-stone-200 pt-3 text-base font-semibold text-stone-900">
-              <dt>Total</dt>
-              <dd>{formatPrice(total)}</dd>
-            </div>
-          </dl>
+        </div>
 
+        <dl className="mt-5 space-y-3 text-sm">
+          <div className="flex justify-between text-muted-foreground">
+            <dt>Subtotal</dt>
+            <dd>{formatPrice(subtotal)}</dd>
+          </div>
+          <div className="flex justify-between border-t border-border pt-3 text-base font-semibold text-foreground">
+            <dt>Total</dt>
+            <dd>{formatPrice(total)}</dd>
+          </div>
+        </dl>
+
+        <div className="mt-5 flex flex-col gap-3">
           <Link
-            href="/checkout"
-            className="mt-5 block rounded-lg bg-stone-900 px-4 py-3 text-center text-sm font-semibold text-white hover:bg-stone-700"
+            href={rows.length > 0 ? "/checkout" : "/menu"}
+            className={cn(buttonVariants({ size: "lg" }), "w-full")}
           >
-            Continue to Checkout
+            {rows.length > 0 ? "Continue to Checkout" : "Go to Menu"}
           </Link>
-        </aside>
-      ) : (
-        <aside className="h-fit rounded-xl border border-stone-200 bg-white p-5">
-          <h2 className="text-lg font-semibold text-stone-900">Cart</h2>
-          <p className="mt-2 text-sm text-stone-600">
-            Add a drink from the menu to start your order.
-          </p>
-          <Link
-            href="/menu"
-            className="mt-5 block rounded-lg bg-stone-900 px-4 py-3 text-center text-sm font-semibold text-white hover:bg-stone-700"
-          >
-            Go to Menu
-          </Link>
-        </aside>
-      )}
+          {rows.length > 0 ? (
+            <Link
+              href="/menu"
+              className={cn(buttonVariants({ variant: "outline", size: "lg" }), "w-full")}
+            >
+              Add More Drinks
+            </Link>
+          ) : null}
+        </div>
+      </aside>
     </div>
   );
 }

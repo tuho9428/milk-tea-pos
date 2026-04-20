@@ -1,27 +1,23 @@
 import Link from "next/link";
-import type { ComponentProps } from "react";
 
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { buttonVariants } from "@/components/ui/button-variants";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatPrice, formatTaxRate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { cn } from "@/lib/utils";
 
-const statusStyles = {
-  PENDING: "border border-amber-300 bg-amber-100 text-amber-900",
-  PAID: "border border-sky-300 bg-sky-100 text-sky-900",
-  MAKING: "border border-violet-300 bg-violet-100 text-violet-900",
-  READY: "border border-emerald-300 bg-emerald-100 text-emerald-900",
-  COMPLETED: "border border-stone-300 bg-stone-200 text-stone-900",
-  CANCELED: "border border-red-300 bg-red-100 text-red-900",
+const statusVariants = {
+  PENDING: "warning",
+  PAID: "primary",
+  MAKING: "primary",
+  READY: "success",
+  COMPLETED: "default",
+  CANCELED: "destructive",
 } as const;
 
-function formatStatusLabel(status: keyof typeof statusStyles) {
+function formatStatusLabel(status: keyof typeof statusVariants) {
   return status.charAt(0) + status.slice(1).toLowerCase();
 }
 
@@ -30,59 +26,6 @@ function formatTimestamp(date: Date) {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(date);
-}
-
-function Badge({ className, ...props }: ComponentProps<"span">) {
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium whitespace-nowrap",
-        className,
-      )}
-      {...props}
-    />
-  );
-}
-
-function Table({ className, ...props }: ComponentProps<"table">) {
-  return (
-    <div className="w-full overflow-x-auto">
-      <table className={cn("w-full caption-bottom text-sm", className)} {...props} />
-    </div>
-  );
-}
-
-function TableHeader(props: ComponentProps<"thead">) {
-  return <thead className="[&_tr]:border-b [&_tr]:border-stone-200" {...props} />;
-}
-
-function TableBody(props: ComponentProps<"tbody">) {
-  return <tbody className="[&_tr:last-child]:border-0" {...props} />;
-}
-
-function TableRow({ className, ...props }: ComponentProps<"tr">) {
-  return (
-    <tr
-      className={cn("border-b border-stone-200 transition-colors", className)}
-      {...props}
-    />
-  );
-}
-
-function TableHead({ className, ...props }: ComponentProps<"th">) {
-  return (
-    <th
-      className={cn(
-        "h-11 px-4 text-left align-middle text-xs font-semibold tracking-wide text-stone-500 uppercase",
-        className,
-      )}
-      {...props}
-    />
-  );
-}
-
-function TableCell({ className, ...props }: ComponentProps<"td">) {
-  return <td className={cn("align-top px-4 py-4", className)} {...props} />;
 }
 
 export default async function AdminOrdersPage() {
@@ -112,78 +55,70 @@ export default async function AdminOrdersPage() {
   });
 
   return (
-    <main className="min-h-screen bg-stone-50 px-6 py-10 text-stone-900">
-      <div className="mx-auto max-w-7xl space-y-6">
-        <Card className="border border-stone-200 bg-white py-0">
-          <CardHeader className="border-b border-stone-200 px-6 py-6">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="text-xs font-semibold tracking-[0.2em] text-stone-500">
-                  ADMIN
-                </p>
-                <CardTitle className="mt-2 text-3xl font-bold text-stone-900">
-                  Orders
-                </CardTitle>
-                <CardDescription className="mt-1 text-stone-600">
-                  Newest orders first, with subtotal, tax, total, and item details.
-                </CardDescription>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <Link
-                  href="/admin"
-                  className="rounded-lg border border-stone-300 bg-stone-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-stone-700"
-                >
-                  Admin Dashboard
-                </Link>
-                <Link
-                  href="/admin/orders/board"
-                  className="rounded-lg border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition-colors hover:bg-stone-100"
-                >
-                  Orders Board
-                </Link>
-                <Link
-                  href="/admin/menu"
-                  className="rounded-lg border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition-colors hover:bg-stone-100"
-                >
-                  Manage Menu
-                </Link>
-                <Link
-                  href="/menu"
-                  className="rounded-lg border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition-colors hover:bg-stone-100"
-                >
-                  Customer Menu
-                </Link>
-              </div>
+    <main className="page-shell">
+      <div className="page-wrap-wide">
+        <section className="hero-panel px-6 py-7 sm:px-8">
+          <div className="relative z-10 flex flex-wrap items-end justify-between gap-4">
+            <div className="max-w-2xl space-y-3">
+              <p className="eyebrow">Admin</p>
+              <h1 className="page-title">Orders</h1>
+              <p className="page-description">
+                Newest orders first, with totals, notes, and item-level customization detail.
+              </p>
             </div>
-          </CardHeader>
-        </Card>
+            <div className="flex flex-wrap gap-2">
+              <Link href="/admin" className={cn(buttonVariants({ size: "sm" }))}>
+                Dashboard
+              </Link>
+              <Link
+                href="/admin/orders/board"
+                className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+              >
+                Orders Board
+              </Link>
+              <Link
+                href="/admin/menu"
+                className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+              >
+                Manage Menu
+              </Link>
+              <Link
+                href="/menu"
+                className={cn(buttonVariants({ variant: "secondary", size: "sm" }))}
+              >
+                Customer Menu
+              </Link>
+            </div>
+          </div>
+        </section>
 
         {orders.length === 0 ? (
-          <Card className="border border-dashed border-stone-300 bg-white py-0">
-            <CardContent className="px-6 py-16 text-center">
-              <h2 className="text-xl font-semibold text-stone-900">No orders yet</h2>
-              <p className="mt-2 text-sm text-stone-500">
+          <Card>
+            <CardContent className="py-16 text-center">
+              <h2 className="text-xl font-semibold text-foreground">No orders yet</h2>
+              <p className="mt-2 text-sm text-muted-foreground">
                 When customers place orders, they&apos;ll appear here.
               </p>
             </CardContent>
           </Card>
         ) : (
-          <Card className="border border-stone-200 bg-white py-0">
-            <CardHeader className="border-b border-stone-200 px-6 py-5">
+          <Card className="table-shell">
+            <CardHeader className="border-b border-border">
               <div className="flex items-center justify-between gap-3">
-                <CardTitle className="text-xl font-semibold text-stone-900">
-                  Incoming Orders
-                </CardTitle>
-                <p className="text-sm text-stone-500">
-                  {orders.length} order{orders.length === 1 ? "" : "s"}
-                </p>
+                <div>
+                  <p className="eyebrow">Order Feed</p>
+                  <CardTitle className="mt-2">Incoming orders</CardTitle>
+                  <CardDescription>
+                    {orders.length} order{orders.length === 1 ? "" : "s"}
+                  </CardDescription>
+                </div>
               </div>
             </CardHeader>
 
-            <CardContent className="px-0 py-0">
+            <CardContent className="px-0 pb-0 pt-0">
               <Table>
                 <TableHeader>
-                  <TableRow className="hover:bg-transparent">
+                  <TableRow>
                     <TableHead className="w-[220px]">Order</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Pricing</TableHead>
@@ -193,85 +128,79 @@ export default async function AdminOrdersPage() {
                 </TableHeader>
                 <TableBody>
                   {orders.map((order) => (
-                    <TableRow key={order.id} className="hover:bg-stone-50/80">
+                    <TableRow key={order.id} className="table-row-soft">
                       <TableCell>
                         <Link
                           href={`/admin/orders/${order.id}`}
-                          className="block rounded-lg p-1 transition-colors hover:bg-stone-100"
+                          className="block rounded-xl p-1 transition hover:bg-primary-soft/40"
                         >
                           <div className="space-y-2">
-                            <p className="font-mono text-xs text-stone-500">
+                            <p className="font-mono text-xs text-muted-foreground">
                               #{order.displayOrderNumber}
                             </p>
                             <div>
-                              <p className="text-sm font-medium text-stone-900">
+                              <p className="text-sm font-medium text-foreground">
                                 {order.customerName}
                               </p>
-                              <p className="text-sm text-stone-500">{order.phone}</p>
+                              <p className="text-sm text-muted-foreground">{order.phone}</p>
                             </div>
-                            <p className="text-xs text-stone-500">
+                            <p className="text-xs text-muted-foreground">
                               {order.notes?.trim() || "No notes provided."}
-                            </p>
-                            <p className="text-xs font-medium text-stone-600">
-                              View details
                             </p>
                           </div>
                         </Link>
                       </TableCell>
                       <TableCell>
                         <div className="space-y-2">
-                          <Badge className={statusStyles[order.status]}>
+                          <Badge variant={statusVariants[order.status]}>
                             {formatStatusLabel(order.status)}
                           </Badge>
-                          <p className="text-xs text-stone-500">
+                          <p className="text-xs text-muted-foreground">
                             Tax rate: {formatTaxRate(Number(order.taxRateApplied))}
                           </p>
                         </div>
                       </TableCell>
                       <TableCell>
                         <div className="space-y-1">
-                          <p className="text-sm text-stone-600">
+                          <p className="text-sm text-muted-foreground">
                             Subtotal: {formatPrice(Number(order.subtotal))}
                           </p>
-                          <p className="text-sm text-stone-600">
+                          <p className="text-sm text-muted-foreground">
                             Tax: {formatPrice(Number(order.tax))}
                           </p>
-                          <p className="font-semibold text-stone-900">
+                          <p className="font-semibold text-foreground">
                             Total: {formatPrice(Number(order.total))}
                           </p>
-                          <p className="text-xs text-stone-500">
+                          <p className="text-xs text-muted-foreground">
                             {order.items.length} item{order.items.length === 1 ? "" : "s"}
                           </p>
                         </div>
                       </TableCell>
                       <TableCell>
-                        <p className="text-sm text-stone-600">
+                        <p className="text-sm text-muted-foreground">
                           {formatTimestamp(order.createdAt)}
                         </p>
                       </TableCell>
                       <TableCell>
                         <div className="space-y-3">
                           {order.items.map((item) => (
-                            <div
-                              key={item.id}
-                              className="rounded-lg border border-stone-200 bg-stone-50 p-3"
-                            >
+                            <div key={item.id} className="soft-panel p-3">
                               <div className="flex flex-wrap items-start justify-between gap-2">
                                 <div>
-                                  <p className="font-medium text-stone-900">
+                                  <p className="font-medium text-foreground">
                                     {item.menuItem?.name ?? "Menu item unavailable"}
                                   </p>
-                                  <p className="mt-1 text-sm text-stone-500">
+                                  <p className="mt-1 text-sm text-muted-foreground">
                                     Qty {item.quantity} · Unit {formatPrice(Number(item.unitPrice))}
                                   </p>
                                 </div>
-                                <p className="text-sm font-semibold text-stone-700">
+                                <p className="text-sm font-semibold text-foreground">
                                   {formatPrice(Number(item.unitPrice) * item.quantity)}
                                 </p>
                               </div>
 
                               {item.modifiers.length > 0 ? (
-                                <ul className="mt-2 space-y-1 text-sm text-stone-500">
+                                <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
                                   {item.modifiers.map((modifier) => (
                                     <li key={modifier.id} className="flex justify-between gap-3">
                                       <span>{modifier.name}</span>
@@ -284,7 +213,7 @@ export default async function AdminOrdersPage() {
                                   ))}
                                 </ul>
                               ) : (
-                                <p className="mt-2 text-sm text-stone-400">
+                                <p className="mt-2 text-sm text-muted-foreground">
                                   No modifiers selected.
                                 </p>
                               )}

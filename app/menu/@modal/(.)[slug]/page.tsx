@@ -19,7 +19,7 @@ export default async function MenuItemModalPage({
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-stone-950/70 px-4 py-6 backdrop-blur-sm">
+    <div className="dialog-backdrop">
       <Link
         href="/menu"
         className="absolute inset-0"
@@ -28,11 +28,7 @@ export default async function MenuItemModalPage({
       />
       <div className="relative mx-auto max-w-4xl">
         <div className="mb-3 flex justify-end">
-          <Link
-            href="/menu"
-            scroll={false}
-            className="rounded-lg border border-stone-600 bg-stone-900/90 px-3 py-2 text-sm font-medium text-stone-100 hover:bg-stone-800"
-          >
+          <Link href="/menu" scroll={false} className="dialog-close">
             Close
           </Link>
         </div>

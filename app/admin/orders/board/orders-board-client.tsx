@@ -17,8 +17,10 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState, useSyncExternalStore, useTransition } from "react";
 
 import { updateOrderStatusAction } from "@/app/admin/orders/actions";
+import { buttonVariants } from "@/components/ui/button-variants";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatPrice } from "@/lib/format";
+import { cn } from "@/lib/utils";
 
 export type BoardColumnStatus = "PENDING" | "MAKING" | "READY" | "COMPLETED";
 
@@ -41,6 +43,7 @@ type OrdersBoardClientProps = {
     status: BoardColumnStatus;
     title: string;
     tone: string;
+    badgeTone: "new" | "progress" | "ready" | "completed";
   }>;
   initialOrders: BoardOrder[];
 };
@@ -88,6 +91,21 @@ function getVisibleItems(items: BoardOrder["items"]) {
     visibleItems,
     hiddenCount,
   };
+}
+
+function getBadgeClass(tone: OrdersBoardClientProps["columns"][number]["badgeTone"]) {
+  switch (tone) {
+    case "new":
+      return "border-[hsl(34_24%_78%)] bg-[hsl(35_28%_90%)] text-[hsl(28_16%_28%)]";
+    case "progress":
+      return "border-[hsl(43_28%_74%)] bg-[hsl(43_30%_88%)] text-[hsl(37_32%_32%)]";
+    case "ready":
+      return "border-[hsl(146_20%_76%)] bg-[hsl(144_22%_89%)] text-[hsl(150_20%_31%)]";
+    case "completed":
+      return "border-[hsl(118_10%_76%)] bg-[hsl(112_11%_88%)] text-[hsl(112_10%_33%)]";
+    default:
+      return "";
+  }
 }
 
 export function OrdersBoardClient({
@@ -196,10 +214,11 @@ export function OrdersBoardClient({
               status={column.status}
               title={column.title}
               tone={column.tone}
+              badgeTone={column.badgeTone}
               count={columnOrders.length}
             >
               {columnOrders.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-stone-300 bg-white px-4 py-6 text-sm text-stone-500">
+                <div className="rounded-[calc(var(--radius)*1.05)] border border-dashed border-border/90 bg-card/75 p-5 text-sm text-muted-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.55)]">
                   No orders in this column.
                 </div>
               ) : (
@@ -219,9 +238,7 @@ export function OrdersBoardClient({
       </section>
 
       <DragOverlay>
-        {activeOrder ? (
-          <BoardCardContent order={activeOrder} isOverlay />
-        ) : null}
+        {activeOrder ? <BoardCardContent order={activeOrder} isOverlay /> : null}
       </DragOverlay>
     </DndContext>
   );
@@ -244,12 +261,14 @@ function DroppableColumn({
   status,
   title,
   tone,
+  badgeTone,
   count,
   children,
 }: {
   status: BoardColumnStatus;
   title: string;
   tone: string;
+  badgeTone: OrdersBoardClientProps["columns"][number]["badgeTone"];
   count: number;
   children: React.ReactNode;
 }) {
@@ -260,14 +279,31 @@ function DroppableColumn({
   return (
     <div
       ref={setNodeRef}
-      className={`space-y-3 rounded-2xl transition-colors ${
-        isOver ? "ring-2 ring-stone-300 ring-offset-2" : ""
-      }`}
+      className={cn(
+        "space-y-3 rounded-[calc(var(--radius)*1.2)] border border-transparent p-2 transition",
+        isOver &&
+          "border-border bg-card/55 shadow-[0_14px_28px_rgba(31,26,23,0.06)]",
+      )}
     >
-      <div className={`rounded-xl border px-4 py-3 ${tone}`}>
+      <div
+        className={cn(
+          "rounded-[calc(var(--radius)*1.05)] border px-4 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.45)]",
+          tone,
+        )}
+      >
         <div className="flex items-center justify-between gap-3">
-          <h2 className="text-lg font-semibold text-stone-900">{title}</h2>
-          <span className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-stone-700">
+          <div>
+            <p className="text-[0.7rem] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+              {status}
+            </p>
+            <h2 className="mt-1 text-lg font-semibold text-foreground">{title}</h2>
+          </div>
+          <span
+            className={cn(
+              "inline-flex min-w-9 items-center justify-center rounded-full border px-2.5 py-1 text-xs font-semibold",
+              getBadgeClass(badgeTone),
+            )}
+          >
             {count}
           </span>
         </div>
@@ -345,32 +381,37 @@ function BoardCardContent({
 
   return (
     <Card
-      className={`border border-stone-200 bg-white py-0 shadow-sm ${
-        isDragging ? "opacity-60" : ""
-      } ${isOverlay ? "w-[280px] rotate-1 shadow-lg" : ""}`}
+      className={cn(
+        "border-border/90 bg-card py-0 shadow-[0_10px_22px_rgba(31,26,23,0.05)]",
+        isDragging &&
+          "border-primary/12 bg-card/98 opacity-80 shadow-[0_16px_30px_rgba(31,26,23,0.12)]",
+        isOverlay &&
+          "w-[292px] -translate-y-1 rotate-[1deg] border-primary/10 shadow-[0_22px_40px_rgba(31,26,23,0.14)]",
+      )}
     >
       <CardContent className="space-y-4 px-4 py-4">
-        <div className="space-y-2">
+        <div className="space-y-3">
           <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="font-medium text-stone-900">{order.customerName}</p>
-              <p className="mt-1 font-mono text-xs text-stone-500">
+            <div className="min-w-0 flex-1">
+              <p className="font-medium text-foreground">{order.customerName}</p>
+              <p className="mt-1 font-mono text-xs text-muted-foreground">
                 #{order.displayOrderNumber}
               </p>
             </div>
-            <p className="text-sm font-semibold text-stone-900">
+            <p className="text-sm font-semibold text-foreground">
               {formatPrice(order.total)}
             </p>
           </div>
 
           <div className="flex items-center justify-between gap-3">
-            <p className="text-xs text-stone-500">
-              {formatTimestamp(order.createdAt)}
-            </p>
+            <p className="text-xs text-muted-foreground">{formatTimestamp(order.createdAt)}</p>
             {!isOverlay ? (
               <button
                 type="button"
-                className="min-h-10 min-w-10 rounded-lg border border-stone-300 px-3 py-2 text-xs font-medium text-stone-600 touch-none hover:bg-stone-100"
+                className={cn(
+                  buttonVariants({ variant: "outline", size: "sm" }),
+                  "touch-none border-border/80 bg-card px-3 shadow-none hover:bg-secondary/70",
+                )}
                 aria-label={`Drag order ${order.displayOrderNumber}`}
                 {...(isMounted ? dragHandleProps : undefined)}
               >
@@ -379,16 +420,16 @@ function BoardCardContent({
             ) : null}
           </div>
 
-          <div className="rounded-lg border border-stone-200 bg-stone-50 px-3 py-3">
+          <div className="rounded-[calc(var(--radius)*0.95)] border border-border/90 bg-secondary/38 px-3 py-3">
             {visibleItems.length > 0 ? (
-              <ul className="space-y-2 text-sm text-stone-700">
+              <ul className="space-y-2 text-sm text-muted-foreground">
                 {visibleItems.map((item, index) => (
                   <li key={`${order.id}-${index}`}>
-                    <p className="font-medium text-stone-800">
+                    <p className="font-medium text-foreground">
                       {item.quantity} x {item.menuItemName ?? "Item"}
                     </p>
                     {item.modifiers.length > 0 ? (
-                      <ul className="mt-1 space-y-1 pl-4 text-xs text-stone-500">
+                      <ul className="mt-1 space-y-1 pl-4 text-xs text-muted-foreground">
                         {item.modifiers.map((modifier) => (
                           <li key={`${order.id}-${index}-${modifier}`}>{modifier}</li>
                         ))}
@@ -398,11 +439,11 @@ function BoardCardContent({
                 ))}
               </ul>
             ) : (
-              <p className="text-sm text-stone-500">No item summary available.</p>
+              <p className="text-sm text-muted-foreground">No item summary available.</p>
             )}
 
             {hiddenCount > 0 ? (
-              <p className="mt-3 text-xs font-medium text-stone-500">
+              <p className="mt-3 text-xs font-medium text-muted-foreground">
                 and {hiddenCount} more item{hiddenCount === 1 ? "" : "s"}
               </p>
             ) : null}
@@ -421,7 +462,7 @@ function BoardCardContent({
                 <button
                   type="submit"
                   disabled={isPending}
-                  className="min-h-11 rounded-lg bg-stone-900 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-stone-700 disabled:cursor-not-allowed disabled:opacity-60"
+                  className={cn(buttonVariants({ size: "sm" }))}
                 >
                   {primaryAction.label}
                 </button>
@@ -430,7 +471,7 @@ function BoardCardContent({
 
             <Link
               href={`/admin/orders/board?order=${order.id}`}
-              className="min-h-11 rounded-lg border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700 transition-colors hover:bg-stone-100"
+              className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
               scroll={false}
             >
               View
@@ -445,7 +486,7 @@ function BoardCardContent({
                 <button
                   type="submit"
                   disabled={isPending}
-                  className="min-h-11 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700 transition-colors hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+                  className={cn(buttonVariants({ variant: "destructive", size: "sm" }))}
                 >
                   {cancelAction.label}
                 </button>

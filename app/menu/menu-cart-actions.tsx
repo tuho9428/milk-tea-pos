@@ -3,8 +3,10 @@
 import Link from "next/link";
 import { useSyncExternalStore } from "react";
 
+import { buttonVariants } from "@/components/ui/button-variants";
 import { getCartItemCount } from "@/lib/cart";
 import { getStoredCart, subscribeToStoredCart } from "@/lib/cart-storage";
+import { cn } from "@/lib/utils";
 
 const EMPTY_CART: ReturnType<typeof getStoredCart> = [];
 
@@ -22,22 +24,28 @@ export function MenuCartActions() {
   }
 
   return (
-    <nav className="flex gap-2 text-sm">
+    <nav className="flex flex-wrap items-center gap-2 text-sm">
       <Link
         href="/cart"
-        className="inline-flex items-center gap-2 rounded-full border border-amber-300 bg-amber-100 px-4 py-2 font-medium text-amber-900 hover:bg-amber-200"
+        className={cn(
+          buttonVariants({ variant: "outline", size: "sm" }),
+          "gap-3 shadow-none",
+        )}
       >
         <span>View Cart</span>
-        <span className="rounded-full bg-amber-900 px-2 py-0.5 text-xs font-semibold text-white">
+        <span className="status-pill status-primary min-w-7 justify-center px-2">
           {itemCount}
         </span>
       </Link>
       <Link
         href="/checkout"
-        className="inline-flex items-center gap-2 rounded-full border border-stone-300 bg-white px-4 py-2 font-medium text-stone-900 hover:bg-stone-100"
+        className={cn(
+          buttonVariants({ variant: "default", size: "sm" }),
+          "gap-3",
+        )}
       >
         <span>Checkout</span>
-        <span className="rounded-full bg-stone-900 px-2 py-0.5 text-xs font-semibold text-white">
+        <span className="status-pill bg-primary-foreground/14 px-2 text-primary-foreground border-primary-foreground/20">
           {itemCount}
         </span>
       </Link>

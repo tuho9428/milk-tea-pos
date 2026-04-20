@@ -27,13 +27,13 @@ export function FloatingCartButton() {
   }
 
   return (
-    <div className="pointer-events-none fixed bottom-5 right-5 z-50 sm:bottom-6 sm:right-6">
+    <div className="pointer-events-none fixed right-5 bottom-5 z-50 sm:right-6 sm:bottom-6">
       <Link
         href="/cart"
-        className="pointer-events-auto inline-flex items-center gap-3 rounded-full border border-stone-900 bg-stone-900 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-stone-900/25 transition-colors hover:bg-stone-700"
+        className="pointer-events-auto inline-flex items-center gap-3 rounded-full border border-primary/15 bg-primary px-5 py-3 text-sm font-medium text-primary-foreground shadow-[0_16px_32px_rgba(47,107,90,0.28)] transition hover:bg-[var(--primary-hover)]"
       >
         <span>View Cart</span>
-        <span className="inline-flex min-w-7 items-center justify-center rounded-full bg-amber-300 px-2 py-1 text-xs font-bold text-stone-900">
+        <span className="inline-flex min-w-8 items-center justify-center rounded-full bg-white/16 px-2 py-1 text-xs font-semibold text-white">
           {itemCount}
         </span>
       </Link>

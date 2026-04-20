@@ -1,5 +1,6 @@
 import { AddToCartForm } from "@/app/menu/[slug]/add-to-cart-form";
 import { formatPrice } from "@/lib/format";
+import { cn } from "@/lib/utils";
 
 export type ProductDetailGroup = {
   id: string;
@@ -35,50 +36,51 @@ export function ProductDetailContent({
 }: ProductDetailContentProps) {
   return (
     <section
-      className={`rounded-2xl border border-stone-700 bg-stone-900/80 p-7 shadow-xl ${
-        mode === "modal" ? "max-h-[85vh] overflow-y-auto" : ""
-      }`}
+      className={cn(
+        "section-card overflow-hidden p-7 sm:p-8",
+        mode === "modal" && "max-h-[85vh] overflow-y-auto",
+      )}
     >
-      <p className="text-xs font-semibold tracking-[0.2em] text-amber-300">
-        {drink.categoryName}
-      </p>
-      <h1 className="mt-2 text-3xl font-bold text-white">{drink.name}</h1>
-      <p className="mt-3 max-w-3xl text-stone-300">
-        {drink.description ?? "No description yet."}
-      </p>
-
-      {drink.tags.length > 0 ? (
-        <div className="mt-4 flex flex-wrap gap-2">
-          {drink.tags.map((tag) => (
-            <span
-              key={tag}
-              className="rounded-full bg-amber-200/20 px-3 py-1 text-sm text-amber-200"
-            >
-              {tag}
+      <div className="space-y-6">
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="eyebrow">{drink.categoryName}</p>
+            <span className={cn("status-pill", drink.soldOut ? "status-danger" : "status-success")}>
+              {drink.soldOut ? "Sold Out" : "Available"}
             </span>
-          ))}
-        </div>
-      ) : null}
+          </div>
 
-      <div className="mt-6 grid gap-4 md:grid-cols-3">
-        <div className="rounded-xl border border-stone-700 bg-stone-950 p-4">
-          <p className="text-xs uppercase tracking-wide text-stone-400">Base Price</p>
-          <p className="mt-2 text-2xl font-bold text-amber-300">
-            {formatPrice(drink.basePrice)}
-          </p>
+          <div className="space-y-3">
+            <h1 className="page-title text-[2.35rem] sm:text-[2.7rem]">{drink.name}</h1>
+            <p className="max-w-3xl text-sm leading-7 text-muted-foreground sm:text-base">
+              {drink.description ?? "No description yet."}
+            </p>
+          </div>
+
+          {drink.tags.length > 0 ? (
+            <div className="flex flex-wrap gap-2">
+              {drink.tags.map((tag) => (
+                <span key={tag} className="chip-accent">
+                  {tag}
+                </span>
+              ))}
+            </div>
+          ) : null}
         </div>
-        <div className="rounded-xl border border-stone-700 bg-stone-950 p-4 md:col-span-2">
-          <p className="text-xs uppercase tracking-wide text-stone-400">Status</p>
-          <div className="mt-2">
-            {drink.soldOut ? (
-              <span className="rounded-full bg-red-900/40 px-3 py-1 text-sm text-red-200">
-                Sold Out
-              </span>
-            ) : (
-              <span className="rounded-full bg-emerald-900/40 px-3 py-1 text-sm text-emerald-200">
-                Available
-              </span>
-            )}
+
+        <div className="grid gap-4 md:grid-cols-[220px_minmax(0,1fr)]">
+          <div className="soft-panel p-5">
+            <p className="eyebrow">Base Price</p>
+            <p className="mt-3 text-3xl font-semibold tracking-[-0.03em] text-foreground">
+              {formatPrice(drink.basePrice)}
+            </p>
+          </div>
+          <div className="soft-panel p-5">
+            <p className="eyebrow">Customization</p>
+            <p className="mt-3 text-sm leading-6 text-muted-foreground">
+              Choose from shared milk tea modifiers like size, sugar, ice, and
+              toppings. Required groups must be selected before the item can be added.
+            </p>
           </div>
         </div>
       </div>

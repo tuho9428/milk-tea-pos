@@ -1,27 +1,22 @@
 import Link from "next/link";
-import type { ComponentProps } from "react";
 
 import { updateOrderStatusAction } from "@/app/admin/orders/actions";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { buttonVariants } from "@/components/ui/button-variants";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatPrice, formatTaxRate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 const editableStatuses = ["PENDING", "MAKING", "READY", "COMPLETED", "CANCELED"] as const;
 type EditableStatus = (typeof editableStatuses)[number];
 
-const statusStyles = {
-  PENDING: "bg-amber-300/20 text-amber-700 ring-1 ring-amber-400/30",
-  PAID: "bg-sky-300/20 text-sky-700 ring-1 ring-sky-400/30",
-  MAKING: "bg-violet-300/20 text-violet-700 ring-1 ring-violet-400/30",
-  READY: "bg-emerald-300/20 text-emerald-700 ring-1 ring-emerald-400/30",
-  COMPLETED: "bg-stone-300/40 text-stone-700 ring-1 ring-stone-400/30",
-  CANCELED: "bg-red-300/20 text-red-700 ring-1 ring-red-400/30",
+const statusVariants = {
+  PENDING: "warning",
+  PAID: "primary",
+  MAKING: "primary",
+  READY: "success",
+  COMPLETED: "default",
+  CANCELED: "destructive",
 } as const;
 
 type AdminOrderDetail = Awaited<ReturnType<typeof import("./order-detail-data").getAdminOrderDetail>>;
@@ -32,7 +27,7 @@ type OrderDetailContentProps = {
   mode?: "page" | "modal";
 };
 
-function formatStatusLabel(status: keyof typeof statusStyles) {
+function formatStatusLabel(status: keyof typeof statusVariants) {
   return status.charAt(0) + status.slice(1).toLowerCase();
 }
 
@@ -47,18 +42,6 @@ function isEditableStatus(status: string): status is EditableStatus {
   return editableStatuses.includes(status as EditableStatus);
 }
 
-function Badge({ className, ...props }: ComponentProps<"span">) {
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium whitespace-nowrap",
-        className,
-      )}
-      {...props}
-    />
-  );
-}
-
 export function OrderDetailContent({
   order,
   mode = "page",
@@ -67,51 +50,44 @@ export function OrderDetailContent({
 
   return (
     <div className={cn("space-y-6", isModal && "max-h-[85vh] overflow-y-auto pr-1")}>
-      <Card className="border border-stone-200 bg-white py-0">
-        <CardHeader className="border-b border-stone-200 px-6 py-6">
+      <Card className="hero-panel">
+        <CardHeader className="relative z-10 border-b border-border">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
-              <p className="text-xs font-semibold tracking-[0.2em] text-stone-500">
-                ADMIN ORDER DETAIL
-              </p>
-              <CardTitle className="mt-2 text-3xl font-bold text-stone-900">
+              <p className="eyebrow">Admin Order Detail</p>
+              <CardTitle className="mt-2 page-title text-[2.15rem]">
                 Order #{order.displayOrderNumber}
               </CardTitle>
-              <CardDescription className="mt-1 text-stone-600">
+              <CardDescription>
                 Review customer info, totals, and all item modifiers.
               </CardDescription>
             </div>
-            <Badge className={statusStyles[order.status]}>
+            <Badge variant={statusVariants[order.status]}>
               {formatStatusLabel(order.status)}
             </Badge>
           </div>
         </CardHeader>
       </Card>
 
-      <Card className="border border-stone-200 bg-white py-0">
-        <CardHeader className="border-b border-stone-200 px-6 py-5">
+      <Card>
+        <CardHeader className="border-b border-border">
           <div className="flex items-center justify-between gap-3">
-            <CardTitle className="text-xl font-semibold text-stone-900">
-              Items
-            </CardTitle>
-            <p className="text-sm text-stone-500">
+            <CardTitle>Items</CardTitle>
+            <p className="text-sm text-muted-foreground">
               {order.items.length} item{order.items.length === 1 ? "" : "s"}
             </p>
           </div>
         </CardHeader>
 
-        <CardContent className="space-y-4 px-6 py-6">
+        <CardContent className="space-y-4 pt-6">
           {order.items.map((item) => (
-            <section
-              key={item.id}
-              className="rounded-xl border border-stone-200 bg-stone-50 p-4"
-            >
+            <section key={item.id} className="soft-panel p-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <h2 className="text-base font-semibold text-stone-900">
+                  <h2 className="text-base font-semibold text-foreground">
                     {item.quantity}x {item.menuItem?.name ?? "Menu item unavailable"}
                   </h2>
-                  <div className="mt-2 space-y-1 text-sm text-stone-600">
+                  <div className="mt-2 space-y-1 text-sm text-muted-foreground">
                     <p>Unit Price: {formatPrice(Number(item.unitPrice))}</p>
                     <p>Line Total: {formatPrice(Number(item.unitPrice) * item.quantity)}</p>
                   </div>
@@ -119,80 +95,63 @@ export function OrderDetailContent({
               </div>
 
               {item.modifiers.length > 0 ? (
-                <ul className="mt-3 space-y-1 pl-4 text-sm text-stone-600">
+                <ul className="mt-3 space-y-1 pl-4 text-sm text-muted-foreground">
                   {item.modifiers.map((modifier) => (
                     <li key={modifier.id}>• {modifier.name}</li>
                   ))}
                 </ul>
               ) : (
-                <p className="mt-3 pl-4 text-sm text-stone-500">No modifiers selected.</p>
+                <p className="mt-3 pl-4 text-sm text-muted-foreground">No modifiers selected.</p>
               )}
             </section>
           ))}
         </CardContent>
       </Card>
 
-      <Card className="border border-stone-200 bg-white py-0">
-        <CardHeader className="border-b border-stone-200 px-6 py-5">
-          <CardTitle className="text-xl font-semibold text-stone-900">
-            Order Notes
-          </CardTitle>
+      <Card>
+        <CardHeader className="border-b border-border">
+          <CardTitle>Order Notes</CardTitle>
         </CardHeader>
-        <CardContent className="px-6 py-6">
-          <p className="text-sm text-stone-900">
+        <CardContent className="pt-6">
+          <p className="text-sm text-foreground">
             {order.notes?.trim() || "No notes provided."}
           </p>
         </CardContent>
       </Card>
 
-      <Card className="border border-stone-200 bg-white py-0">
-        <CardHeader className="border-b border-stone-200 px-6 py-5">
-          <CardTitle className="text-xl font-semibold text-stone-900">
-            Customer Info
-          </CardTitle>
+      <Card>
+        <CardHeader className="border-b border-border">
+          <CardTitle>Customer Info</CardTitle>
         </CardHeader>
 
-        <CardContent className="px-6 py-6">
+        <CardContent className="pt-6">
           <div className="grid gap-4 md:grid-cols-2">
-            <div className="rounded-xl border border-stone-200 bg-stone-50 p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">
-                Customer Name
-              </p>
-              <p className="mt-1 text-sm font-medium text-stone-900">
-                {order.customerName}
-              </p>
+            <div className="soft-panel p-4">
+              <p className="eyebrow">Customer Name</p>
+              <p className="mt-2 text-sm font-medium text-foreground">{order.customerName}</p>
             </div>
-            <div className="rounded-xl border border-stone-200 bg-stone-50 p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">
-                Phone
-              </p>
-              <p className="mt-1 text-sm text-stone-900">{order.phone}</p>
+            <div className="soft-panel p-4">
+              <p className="eyebrow">Phone</p>
+              <p className="mt-2 text-sm text-foreground">{order.phone}</p>
             </div>
-            <div className="rounded-xl border border-stone-200 bg-stone-50 p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">
-                Created
-              </p>
-              <p className="mt-1 text-sm text-stone-900">
+            <div className="soft-panel p-4">
+              <p className="eyebrow">Created</p>
+              <p className="mt-2 text-sm text-foreground">
                 {formatTimestamp(order.createdAt)}
               </p>
             </div>
-            <div className="rounded-xl border border-stone-200 bg-stone-50 p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">
-                Status
-              </p>
-              <div className="mt-1 flex flex-wrap items-center gap-3">
-                <Badge className={statusStyles[order.status]}>
+            <div className="soft-panel p-4">
+              <p className="eyebrow">Status</p>
+              <div className="mt-2 flex flex-wrap items-center gap-3">
+                <Badge variant={statusVariants[order.status]}>
                   {formatStatusLabel(order.status)}
                 </Badge>
-                <form
-                  action={updateOrderStatusAction}
-                  className="flex flex-wrap items-center gap-2"
-                >
+                <form action={updateOrderStatusAction} className="flex flex-wrap items-center gap-2">
                   <input type="hidden" name="orderId" value={order.id} />
                   <select
                     name="status"
                     defaultValue={isEditableStatus(order.status) ? order.status : "PENDING"}
-                    className="rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900"
+                    className="field-select h-10 pr-10"
                     aria-label="Update order status"
                   >
                     {editableStatuses.map((status) => (
@@ -201,10 +160,7 @@ export function OrderDetailContent({
                       </option>
                     ))}
                   </select>
-                  <button
-                    type="submit"
-                    className="rounded-lg bg-stone-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-stone-700"
-                  >
+                  <button type="submit" className={cn(buttonVariants({ size: "sm" }))}>
                     Update
                   </button>
                 </form>
@@ -214,44 +170,32 @@ export function OrderDetailContent({
         </CardContent>
       </Card>
 
-      <Card className="border border-stone-200 bg-white py-0">
-        <CardHeader className="border-b border-stone-200 px-6 py-5">
-          <CardTitle className="text-xl font-semibold text-stone-900">
-            Pricing
-          </CardTitle>
+      <Card>
+        <CardHeader className="border-b border-border">
+          <CardTitle>Pricing</CardTitle>
         </CardHeader>
 
-        <CardContent className="px-6 py-6">
+        <CardContent className="pt-6">
           <div className="grid gap-4 md:grid-cols-2">
-            <div className="rounded-xl border border-stone-200 bg-stone-50 p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">
-                Subtotal
-              </p>
-              <p className="mt-1 text-sm text-stone-900">
+            <div className="soft-panel p-4">
+              <p className="eyebrow">Subtotal</p>
+              <p className="mt-2 text-sm text-foreground">
                 {formatPrice(Number(order.subtotal))}
               </p>
             </div>
-            <div className="rounded-xl border border-stone-200 bg-stone-50 p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">
-                Tax
-              </p>
-              <p className="mt-1 text-sm text-stone-900">
-                {formatPrice(Number(order.tax))}
-              </p>
+            <div className="soft-panel p-4">
+              <p className="eyebrow">Tax</p>
+              <p className="mt-2 text-sm text-foreground">{formatPrice(Number(order.tax))}</p>
             </div>
-            <div className="rounded-xl border border-stone-200 bg-stone-50 p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">
-                Total
-              </p>
-              <p className="mt-1 text-sm font-semibold text-stone-900">
+            <div className="soft-panel p-4">
+              <p className="eyebrow">Total</p>
+              <p className="mt-2 text-sm font-semibold text-foreground">
                 {formatPrice(Number(order.total))}
               </p>
             </div>
-            <div className="rounded-xl border border-stone-200 bg-stone-50 p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">
-                Tax Rate
-              </p>
-              <p className="mt-1 text-sm text-stone-900">
+            <div className="soft-panel p-4">
+              <p className="eyebrow">Tax Rate</p>
+              <p className="mt-2 text-sm text-foreground">
                 {formatTaxRate(Number(order.taxRateApplied))}
               </p>
             </div>
@@ -261,7 +205,7 @@ export function OrderDetailContent({
             <div className="mt-5">
               <Link
                 href={`/admin/orders/${order.id}`}
-                className="inline-flex rounded-lg border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition-colors hover:bg-stone-100"
+                className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
               >
                 Open Full Detail Page
               </Link>
