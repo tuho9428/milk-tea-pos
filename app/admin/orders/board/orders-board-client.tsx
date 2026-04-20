@@ -14,7 +14,7 @@ import {
 } from "@dnd-kit/core";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState, useSyncExternalStore, useTransition } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore, useTransition } from "react";
 
 import { updateOrderStatusAction } from "@/app/admin/orders/actions";
 import { buttonVariants } from "@/components/ui/button-variants";
@@ -53,6 +53,15 @@ type BoardAction = {
   status: BoardColumnStatus | "CANCELED";
   tone?: "primary" | "danger";
 };
+
+const cancellationReasons = [
+  "Customer changed mind",
+  "Item unavailable",
+  "Store issue",
+  "Duplicate order",
+  "Payment problem",
+  "Other",
+] as const;
 
 function formatTimestamp(dateInput: string) {
   return new Intl.DateTimeFormat("en-US", {
@@ -96,16 +105,45 @@ function getVisibleItems(items: BoardOrder["items"]) {
 function getBadgeClass(tone: OrdersBoardClientProps["columns"][number]["badgeTone"]) {
   switch (tone) {
     case "new":
-      return "border-[hsl(34_24%_78%)] bg-[hsl(35_28%_90%)] text-[hsl(28_16%_28%)]";
+      return "border-[hsl(34_22%_80%)] bg-[hsl(35_26%_91%)] text-[hsl(28_16%_30%)]";
     case "progress":
-      return "border-[hsl(43_28%_74%)] bg-[hsl(43_30%_88%)] text-[hsl(37_32%_32%)]";
+      return "border-[hsl(43_24%_76%)] bg-[hsl(43_28%_88%)] text-[hsl(37_28%_34%)]";
     case "ready":
-      return "border-[hsl(146_20%_76%)] bg-[hsl(144_22%_89%)] text-[hsl(150_20%_31%)]";
+      return "border-[hsl(146_18%_78%)] bg-[hsl(144_20%_90%)] text-[hsl(150_18%_33%)]";
     case "completed":
-      return "border-[hsl(118_10%_76%)] bg-[hsl(112_11%_88%)] text-[hsl(112_10%_33%)]";
+      return "border-[hsl(118_8%_79%)] bg-[hsl(112_10%_89%)] text-[hsl(112_10%_35%)]";
     default:
       return "";
   }
+}
+
+function getWorkflowActionClass(status: BoardColumnStatus) {
+  switch (status) {
+    case "PENDING":
+      return cn(
+        buttonVariants({ variant: "outline", size: "sm" }),
+        "min-w-[7.75rem] justify-center border-primary/35 bg-card text-primary shadow-none hover:border-primary/45 hover:bg-primary/5 hover:text-primary",
+      );
+    case "MAKING":
+      return cn(
+        buttonVariants({ variant: "secondary", size: "sm" }),
+        "min-w-[7.75rem] justify-center border-primary/12 bg-primary/10 text-primary shadow-none hover:bg-primary/18 hover:text-primary",
+      );
+    case "READY":
+      return cn(
+        buttonVariants({ size: "sm" }),
+        "min-w-[7.75rem] justify-center shadow-[0_10px_20px_hsl(var(--primary)/0.16)]",
+      );
+    default:
+      return cn(buttonVariants({ size: "sm" }), "min-w-[7.75rem] justify-center");
+  }
+}
+
+function getCancelTriggerClass() {
+  return cn(
+    buttonVariants({ variant: "destructive", size: "sm" }),
+    "w-full justify-center border-destructive/12 bg-destructive/8 text-destructive shadow-none hover:bg-destructive/12",
+  );
 }
 
 export function OrdersBoardClient({
@@ -374,127 +412,245 @@ function BoardCardContent({
 }) {
   const nextActions = getNextActions(order.status);
   const { visibleItems, hiddenCount } = getVisibleItems(order.items);
+  const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
   const primaryAction = nextActions.find(
     (action) => "tone" in action && action.tone === "primary",
   );
   const cancelAction = nextActions.find((action) => action.status === "CANCELED");
 
+  useEffect(() => {
+    if (!isCancelDialogOpen) {
+      return;
+    }
+
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setIsCancelDialogOpen(false);
+        setCancelReason("");
+      }
+    }
+
+    window.addEventListener("keydown", handleEscape);
+
+    return () => {
+      window.removeEventListener("keydown", handleEscape);
+    };
+  }, [isCancelDialogOpen]);
+
+  function closeCancelDialog() {
+    setIsCancelDialogOpen(false);
+    setCancelReason("");
+  }
+
   return (
-    <Card
-      className={cn(
-        "border-border/90 bg-card py-0 shadow-[0_10px_22px_rgba(31,26,23,0.05)]",
-        isDragging &&
-          "border-primary/12 bg-card/98 opacity-80 shadow-[0_16px_30px_rgba(31,26,23,0.12)]",
-        isOverlay &&
-          "w-[292px] -translate-y-1 rotate-[1deg] border-primary/10 shadow-[0_22px_40px_rgba(31,26,23,0.14)]",
-      )}
-    >
-      <CardContent className="space-y-4 px-4 py-4">
-        <div className="space-y-3">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0 flex-1">
-              <p className="font-medium text-foreground">{order.customerName}</p>
-              <p className="mt-1 font-mono text-xs text-muted-foreground">
-                #{order.displayOrderNumber}
+    <>
+      <Card
+        className={cn(
+          "border-border/90 bg-card py-0 shadow-[0_10px_22px_rgba(31,26,23,0.05)]",
+          isDragging &&
+            "border-primary/12 bg-card/98 opacity-80 shadow-[0_16px_30px_rgba(31,26,23,0.12)]",
+          isOverlay &&
+            "w-[292px] -translate-y-1 rotate-[1deg] border-primary/10 shadow-[0_22px_40px_rgba(31,26,23,0.14)]",
+        )}
+      >
+        <CardContent className="space-y-4 px-4 py-4">
+          <div className="space-y-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <p className="font-medium text-foreground">{order.customerName}</p>
+                <p className="mt-1 font-mono text-xs text-muted-foreground">
+                  #{order.displayOrderNumber}
+                </p>
+              </div>
+              <p className="text-sm font-semibold text-foreground">
+                {formatPrice(order.total)}
               </p>
             </div>
-            <p className="text-sm font-semibold text-foreground">
-              {formatPrice(order.total)}
-            </p>
+
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-xs text-muted-foreground">{formatTimestamp(order.createdAt)}</p>
+              {!isOverlay ? (
+                <button
+                  type="button"
+                  className={cn(
+                    buttonVariants({ variant: "outline", size: "sm" }),
+                    "touch-none border-border/80 bg-card px-3 shadow-none hover:bg-secondary/70",
+                  )}
+                  aria-label={`Drag order ${order.displayOrderNumber}`}
+                  {...(isMounted ? dragHandleProps : undefined)}
+                >
+                  Drag
+                </button>
+              ) : null}
+            </div>
+
+            <div className="rounded-[calc(var(--radius)*0.95)] border border-border/90 bg-secondary/38 px-3 py-3">
+              {visibleItems.length > 0 ? (
+                <ul className="space-y-2 text-sm text-muted-foreground">
+                  {visibleItems.map((item, index) => (
+                    <li key={`${order.id}-${index}`}>
+                      <p className="font-medium text-foreground">
+                        {item.quantity} x {item.menuItemName ?? "Item"}
+                      </p>
+                      {item.modifiers.length > 0 ? (
+                        <ul className="mt-1 space-y-1 pl-4 text-xs text-muted-foreground">
+                          {item.modifiers.map((modifier) => (
+                            <li key={`${order.id}-${index}-${modifier}`}>{modifier}</li>
+                          ))}
+                        </ul>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-muted-foreground">No item summary available.</p>
+              )}
+
+              {hiddenCount > 0 ? (
+                <p className="mt-3 text-xs font-medium text-muted-foreground">
+                  and {hiddenCount} more item{hiddenCount === 1 ? "" : "s"}
+                </p>
+              ) : null}
+            </div>
           </div>
 
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-xs text-muted-foreground">{formatTimestamp(order.createdAt)}</p>
-            {!isOverlay ? (
+          {!isOverlay ? (
+            <div className="flex flex-col gap-2 pt-1">
+              {primaryAction ? (
+                <form
+                  key={primaryAction.status}
+                  className="w-full"
+                  action={async () => {
+                    await onQuickUpdate?.(order.id, primaryAction.status);
+                  }}
+                >
+                  <button
+                    type="submit"
+                    disabled={isPending}
+                    className={cn(getWorkflowActionClass(order.status), "w-full")}
+                  >
+                    {primaryAction.label}
+                  </button>
+                </form>
+              ) : null}
+
+              <div className="grid grid-cols-2 gap-2">
+                <Link
+                  href={`/admin/orders/board?order=${order.id}`}
+                  className={cn(
+                    buttonVariants({ variant: "outline", size: "sm" }),
+                    "w-full justify-center border-border/90 bg-card text-muted-foreground shadow-none hover:bg-secondary/60 hover:text-foreground",
+                  )}
+                  scroll={false}
+                >
+                  View
+                </Link>
+
+                {cancelAction ? (
+                  <button
+                    type="button"
+                    disabled={isPending}
+                    onClick={() => {
+                      setIsCancelDialogOpen(true);
+                    }}
+                    className={getCancelTriggerClass()}
+                  >
+                    {cancelAction.label}
+                  </button>
+                ) : (
+                  <div />
+                )}
+              </div>
+            </div>
+          ) : null}
+        </CardContent>
+      </Card>
+
+      {isCancelDialogOpen && !isOverlay ? (
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center px-4 py-6"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={`cancel-order-title-${order.id}`}
+          aria-describedby={`cancel-order-description-${order.id}`}
+        >
+          <button
+            type="button"
+            className="absolute inset-0 bg-foreground/28 backdrop-blur-sm"
+            aria-label="Close cancellation dialog"
+            onClick={closeCancelDialog}
+          />
+
+          <div className="relative z-10 w-full max-w-md rounded-[calc(var(--radius)*1.2)] border border-border bg-card p-6 shadow-[0_22px_50px_rgba(31,26,23,0.16)]">
+            <div className="space-y-2">
+              <h2
+                id={`cancel-order-title-${order.id}`}
+                className="text-xl font-semibold tracking-[-0.02em] text-foreground"
+              >
+                Cancel order?
+              </h2>
+              <p
+                id={`cancel-order-description-${order.id}`}
+                className="text-sm leading-6 text-muted-foreground"
+              >
+                This will update the order status to cancelled. Please select a
+                reason before continuing.
+              </p>
+            </div>
+
+            <div className="mt-5 space-y-2">
+              <label
+                htmlFor={`cancel-reason-${order.id}`}
+                className="text-sm font-medium text-foreground"
+              >
+                Cancellation reason
+              </label>
+              <select
+                id={`cancel-reason-${order.id}`}
+                value={cancelReason}
+                onChange={(event) => {
+                  setCancelReason(event.target.value);
+                }}
+                className="field-select"
+                autoFocus
+              >
+                <option value="">Select a reason</option>
+                {cancellationReasons.map((reason) => (
+                  <option key={reason} value={reason}>
+                    {reason}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <button
                 type="button"
-                className={cn(
-                  buttonVariants({ variant: "outline", size: "sm" }),
-                  "touch-none border-border/80 bg-card px-3 shadow-none hover:bg-secondary/70",
-                )}
-                aria-label={`Drag order ${order.displayOrderNumber}`}
-                {...(isMounted ? dragHandleProps : undefined)}
+                onClick={closeCancelDialog}
+                className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
               >
-                Drag
+                Go Back
               </button>
-            ) : null}
-          </div>
+              <button
+                type="button"
+                disabled={!cancelReason || isPending}
+                onClick={async () => {
+                  if (!cancelAction || !cancelReason) {
+                    return;
+                  }
 
-          <div className="rounded-[calc(var(--radius)*0.95)] border border-border/90 bg-secondary/38 px-3 py-3">
-            {visibleItems.length > 0 ? (
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                {visibleItems.map((item, index) => (
-                  <li key={`${order.id}-${index}`}>
-                    <p className="font-medium text-foreground">
-                      {item.quantity} x {item.menuItemName ?? "Item"}
-                    </p>
-                    {item.modifiers.length > 0 ? (
-                      <ul className="mt-1 space-y-1 pl-4 text-xs text-muted-foreground">
-                        {item.modifiers.map((modifier) => (
-                          <li key={`${order.id}-${index}-${modifier}`}>{modifier}</li>
-                        ))}
-                      </ul>
-                    ) : null}
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-sm text-muted-foreground">No item summary available.</p>
-            )}
-
-            {hiddenCount > 0 ? (
-              <p className="mt-3 text-xs font-medium text-muted-foreground">
-                and {hiddenCount} more item{hiddenCount === 1 ? "" : "s"}
-              </p>
-            ) : null}
+                  await onQuickUpdate?.(order.id, cancelAction.status);
+                  closeCancelDialog();
+                }}
+                className={cn(buttonVariants({ variant: "destructive", size: "sm" }))}
+              >
+                Confirm Cancel
+              </button>
+            </div>
           </div>
         </div>
-
-        {!isOverlay ? (
-          <div className="flex flex-wrap gap-2">
-            {primaryAction ? (
-              <form
-                key={primaryAction.status}
-                action={async () => {
-                  await onQuickUpdate?.(order.id, primaryAction.status);
-                }}
-              >
-                <button
-                  type="submit"
-                  disabled={isPending}
-                  className={cn(buttonVariants({ size: "sm" }))}
-                >
-                  {primaryAction.label}
-                </button>
-              </form>
-            ) : null}
-
-            <Link
-              href={`/admin/orders/board?order=${order.id}`}
-              className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
-              scroll={false}
-            >
-              View
-            </Link>
-
-            {cancelAction ? (
-              <form
-                action={async () => {
-                  await onQuickUpdate?.(order.id, cancelAction.status);
-                }}
-              >
-                <button
-                  type="submit"
-                  disabled={isPending}
-                  className={cn(buttonVariants({ variant: "destructive", size: "sm" }))}
-                >
-                  {cancelAction.label}
-                </button>
-              </form>
-            ) : null}
-          </div>
-        ) : null}
-      </CardContent>
-    </Card>
+      ) : null}
+    </>
   );
 }
