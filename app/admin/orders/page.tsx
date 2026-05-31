@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { OrderDetailContent } from "@/app/admin/orders/order-detail-content";
+import { getAdminOrderDetail } from "@/app/admin/orders/order-detail-data";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,7 +30,18 @@ function formatTimestamp(date: Date) {
   }).format(date);
 }
 
-export default async function AdminOrdersPage() {
+type AdminOrdersPageProps = {
+  searchParams?: Promise<{
+    order?: string;
+  }>;
+};
+
+export default async function AdminOrdersPage({
+  searchParams,
+}: AdminOrdersPageProps) {
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  const activeOrderId = resolvedSearchParams?.order?.trim() || null;
+
   const orders = await prisma.order.findMany({
     orderBy: {
       createdAt: "desc",
@@ -53,6 +66,9 @@ export default async function AdminOrdersPage() {
       },
     },
   });
+  const activeOrder = activeOrderId
+    ? await getAdminOrderDetail(activeOrderId).catch(() => null)
+    : null;
 
   return (
     <main className="page-shell">
@@ -124,31 +140,27 @@ export default async function AdminOrdersPage() {
                     <TableHead>Pricing</TableHead>
                     <TableHead>Created</TableHead>
                     <TableHead className="min-w-[360px]">Items</TableHead>
+                    <TableHead className="w-[120px] text-right">Action</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {orders.map((order) => (
                     <TableRow key={order.id} className="table-row-soft">
                       <TableCell>
-                        <Link
-                          href={`/admin/orders/${order.id}`}
-                          className="block rounded-xl p-1 transition hover:bg-primary-soft/40"
-                        >
-                          <div className="space-y-2">
-                            <p className="font-mono text-xs text-muted-foreground">
-                              #{order.displayOrderNumber}
+                        <div className="space-y-2 rounded-xl p-1">
+                          <p className="font-mono text-xs text-muted-foreground">
+                            #{order.displayOrderNumber}
+                          </p>
+                          <div>
+                            <p className="text-sm font-medium text-foreground">
+                              {order.customerName}
                             </p>
-                            <div>
-                              <p className="text-sm font-medium text-foreground">
-                                {order.customerName}
-                              </p>
-                              <p className="text-sm text-muted-foreground">{order.phone}</p>
-                            </div>
-                            <p className="text-xs text-muted-foreground">
-                              {order.notes?.trim() || "No notes provided."}
-                            </p>
+                            <p className="text-sm text-muted-foreground">{order.phone}</p>
                           </div>
-                        </Link>
+                          <p className="text-xs text-muted-foreground">
+                            {order.notes?.trim() || "No notes provided."}
+                          </p>
+                        </div>
                       </TableCell>
                       <TableCell>
                         <div className="space-y-2">
@@ -221,6 +233,18 @@ export default async function AdminOrdersPage() {
                           ))}
                         </div>
                       </TableCell>
+                      <TableCell className="text-right">
+                        <Link
+                          href={`/admin/orders?order=${order.id}`}
+                          className={cn(
+                            buttonVariants({ variant: "outline", size: "sm" }),
+                            "whitespace-nowrap",
+                          )}
+                          scroll={false}
+                        >
+                          View
+                        </Link>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -229,6 +253,47 @@ export default async function AdminOrdersPage() {
           </Card>
         )}
       </div>
+
+      {activeOrderId ? (
+        <div className="dialog-backdrop">
+          <Link
+            href="/admin/orders"
+            className="absolute inset-0"
+            aria-label="Close order details"
+            scroll={false}
+          />
+
+          <div className="relative mx-auto max-w-5xl">
+            <div className="mb-3 flex justify-end">
+              <Link href="/admin/orders" className="dialog-close" scroll={false}>
+                Close
+              </Link>
+            </div>
+
+            {activeOrder ? (
+              <OrderDetailContent order={activeOrder} mode="modal" />
+            ) : (
+              <Card>
+                <CardHeader className="border-b border-border">
+                  <CardTitle>Order Not Found</CardTitle>
+                  <CardDescription>
+                    This order is unavailable or could not be loaded.
+                  </CardDescription>
+                </CardHeader>
+                <div className="px-6 py-6">
+                  <Link
+                    href="/admin/orders"
+                    className={cn(buttonVariants({ size: "sm" }))}
+                    scroll={false}
+                  >
+                    Back to Orders
+                  </Link>
+                </div>
+              </Card>
+            )}
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }

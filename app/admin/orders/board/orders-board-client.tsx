@@ -518,21 +518,17 @@ function BoardCardContent({
           {!isOverlay ? (
             <div className="flex flex-col gap-2 pt-1">
               {primaryAction ? (
-                <form
+                <button
                   key={primaryAction.status}
-                  className="w-full"
-                  action={async () => {
+                  type="button"
+                  disabled={isPending}
+                  onClick={async () => {
                     await onQuickUpdate?.(order.id, primaryAction.status);
                   }}
+                  className={cn(getWorkflowActionClass(order.status), "w-full")}
                 >
-                  <button
-                    type="submit"
-                    disabled={isPending}
-                    className={cn(getWorkflowActionClass(order.status), "w-full")}
-                  >
-                    {primaryAction.label}
-                  </button>
-                </form>
+                  {primaryAction.label}
+                </button>
               ) : null}
 
               <div className="grid grid-cols-2 gap-2">
