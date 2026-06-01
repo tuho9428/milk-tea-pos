@@ -21,6 +21,8 @@ type ModifierGroupView = {
   name: string;
   required: boolean;
   multiSelect: boolean;
+  maxSelections: number;
+  defaultOptionId: string | null;
   options: ModifierOptionView[];
 };
 
@@ -32,6 +34,32 @@ type AddToCartFormProps = {
   showCartLink?: boolean;
 };
 
+function getSelectionLimit(group: ModifierGroupView) {
+  if (!group.multiSelect) {
+    return 1;
+  }
+
+  return Math.max(1, Math.min(group.maxSelections, group.options.length));
+}
+
+function getInitialSelections(groups: ModifierGroupView[]) {
+  return groups.reduce<Record<string, string[]>>((acc, group) => {
+    if (!group.required || group.options.length === 0) {
+      return acc;
+    }
+
+    const defaultOptionId =
+      group.options.find((option) => option.id === group.defaultOptionId)?.id ??
+      group.options[0]?.id;
+
+    if (defaultOptionId) {
+      acc[group.id] = [defaultOptionId];
+    }
+
+    return acc;
+  }, {});
+}
+
 export function AddToCartForm({
   menuItem,
   groups,
@@ -41,7 +69,9 @@ export function AddToCartForm({
 }: AddToCartFormProps) {
   const router = useRouter();
   const [quantity, setQuantity] = useState(1);
-  const [selectedByGroup, setSelectedByGroup] = useState<Record<string, string[]>>({});
+  const [selectedByGroup, setSelectedByGroup] = useState<Record<string, string[]>>(() =>
+    getInitialSelections(groups),
+  );
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const selectedModifiers = groups.flatMap((group) => {
@@ -60,14 +90,14 @@ export function AddToCartForm({
     (menuItem.basePrice +
       selectedModifiers.reduce((sum, modifier) => sum + modifier.priceDelta, 0));
 
-  function toggleOption(groupId: string, optionId: string, multiSelect: boolean) {
+  function toggleOption(group: ModifierGroupView, optionId: string) {
     setSelectedByGroup((current) => {
-      const currentGroup = current[groupId] ?? [];
+      const currentGroup = current[group.id] ?? [];
 
-      if (!multiSelect) {
+      if (!group.multiSelect) {
         return {
           ...current,
-          [groupId]: [optionId],
+          [group.id]: [optionId],
         };
       }
 
@@ -75,9 +105,15 @@ export function AddToCartForm({
         ? currentGroup.filter((id) => id !== optionId)
         : [...currentGroup, optionId];
 
+      const selectionLimit = getSelectionLimit(group);
+
+      if (!currentGroup.includes(optionId) && currentGroup.length >= selectionLimit) {
+        return current;
+      }
+
       return {
         ...current,
-        [groupId]: nextGroup,
+        [group.id]: nextGroup,
       };
     });
 
@@ -121,13 +157,15 @@ export function AddToCartForm({
       <div className="mt-8 grid gap-4 md:grid-cols-2">
         {groups.map((group) => {
           const selectedIds = selectedByGroup[group.id] ?? [];
+          const selectionLimit = getSelectionLimit(group);
+          const atSelectionLimit = group.multiSelect && selectedIds.length >= selectionLimit;
 
           return (
             <section key={group.id} className="soft-panel p-5">
               <div className="flex items-center justify-between gap-3">
                 <h2 className="text-base font-semibold text-foreground">{group.name}</h2>
                 <span className="text-xs text-muted-foreground">
-                  {group.multiSelect ? "Choose any" : "Choose one"}
+                  {group.multiSelect ? `Choose up to ${selectionLimit}` : "Choose one"}
                   {group.required ? " - Required" : " - Optional"}
                 </span>
               </div>
@@ -135,19 +173,23 @@ export function AddToCartForm({
               <div className="mt-4 space-y-2">
                 {group.options.map((option) => {
                   const isSelected = selectedIds.includes(option.id);
+                  const isDisabled = !isSelected && atSelectionLimit;
 
                   return (
                     <button
                       key={option.id}
                       type="button"
-                      onClick={() => toggleOption(group.id, option.id, group.multiSelect)}
-                      className={cn(
-                        "flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left text-sm transition",
-                        isSelected
-                          ? "border-primary/22 bg-primary-soft text-primary shadow-[inset_0_1px_0_rgba(255,255,255,0.6)]"
-                          : "border-border bg-card text-foreground hover:border-primary/18 hover:bg-background",
-                      )}
-                    >
+                      disabled={isDisabled}
+                      onClick={() => toggleOption(group, option.id)}
+                    className={cn(
+                      "flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left text-sm transition-all duration-200",
+                      isSelected
+                        ? "border-primary/22 bg-primary-soft text-primary shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] hover:-translate-y-0.5 hover:border-primary/28 hover:bg-primary-soft hover:shadow-[0_8px_18px_rgba(31,26,23,0.08)]"
+                        : "border-border bg-card text-foreground hover:-translate-y-0.5 hover:border-primary/18 hover:bg-background hover:shadow-[0_8px_18px_rgba(31,26,23,0.05)]",
+                      isDisabled &&
+                        "cursor-not-allowed border-border/70 bg-muted/45 text-muted-foreground opacity-70 shadow-none hover:translate-y-0 hover:bg-muted/45 hover:shadow-none",
+                    )}
+                  >
                       <span className="font-medium">{option.name}</span>
                       <span className="text-muted-foreground">
                         {option.priceDelta === 0

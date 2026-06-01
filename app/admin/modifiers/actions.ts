@@ -5,6 +5,24 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 
 const modifierTypes = ["SIZE", "SUGAR", "ICE", "TOPPING", "OTHER"] as const;
+const defaultMaxSelections = 2;
+
+export type ModifierTemplateFormState = {
+  status: "idle" | "success" | "error";
+  message: string;
+  token: string;
+};
+
+function createModifierTemplateFormState(
+  status: ModifierTemplateFormState["status"],
+  message: string,
+): ModifierTemplateFormState {
+  return {
+    status,
+    message,
+    token: crypto.randomUUID(),
+  };
+}
 
 function revalidateModifierPaths(modifierId?: string) {
   revalidatePath("/admin/modifiers");
@@ -79,14 +97,71 @@ async function swapModifierTemplateOptionOrder(
   revalidateModifierPaths(modifierTemplateId);
 }
 
-export async function addModifierTemplateAction(formData: FormData) {
+function parseMaxSelections(formData: FormData) {
+  const rawValue = Number(formData.get("maxSelections") ?? defaultMaxSelections);
+
+  if (!Number.isInteger(rawValue) || rawValue < 1) {
+    return defaultMaxSelections;
+  }
+
+  return rawValue;
+}
+
+async function resolveDefaultOptionId(
+  modifierTemplateId: string,
+  candidateDefaultOptionId: string | null,
+  fallbackDefaultOptionId: string | null,
+) {
+  const candidateIds = [candidateDefaultOptionId, fallbackDefaultOptionId].filter(
+    (value): value is string => Boolean(value),
+  );
+
+  if (candidateIds.length > 0) {
+    const validOption = await prisma.modifierTemplateOption.findFirst({
+      where: {
+        id: { in: candidateIds },
+        modifierTemplateId,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (validOption) {
+      return validOption.id;
+    }
+  }
+
+  const firstOption = await prisma.modifierTemplateOption.findFirst({
+    where: {
+      modifierTemplateId,
+    },
+    orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
+    select: {
+      id: true,
+    },
+  });
+
+  return firstOption?.id ?? null;
+}
+
+export async function addModifierTemplateAction(
+  _state: ModifierTemplateFormState,
+  formData: FormData,
+): Promise<ModifierTemplateFormState> {
   const name = String(formData.get("name") ?? "").trim();
   const type = String(formData.get("type") ?? "");
   const required = String(formData.get("required") ?? "") === "on";
   const multiSelect = String(formData.get("multiSelect") ?? "") === "on";
+  const maxSelections = parseMaxSelections(formData);
 
   if (!name || !modifierTypes.includes(type as (typeof modifierTypes)[number])) {
-    return;
+    return {
+      ...createModifierTemplateFormState(
+        "error",
+        "Please enter a template name and choose a valid type.",
+      ),
+    };
   }
 
   const template = await prisma.modifierTemplate.create({
@@ -95,6 +170,7 @@ export async function addModifierTemplateAction(formData: FormData) {
       type: type as (typeof modifierTypes)[number],
       required,
       multiSelect,
+      maxSelections,
     },
     select: {
       id: true,
@@ -102,18 +178,54 @@ export async function addModifierTemplateAction(formData: FormData) {
   });
 
   revalidateModifierPaths(template.id);
+
+  return {
+    ...createModifierTemplateFormState("success", "Template created successfully."),
+  };
 }
 
-export async function updateModifierTemplateAction(formData: FormData) {
+export async function updateModifierTemplateAction(
+  _state: ModifierTemplateFormState,
+  formData: FormData,
+): Promise<ModifierTemplateFormState> {
   const id = String(formData.get("id") ?? "");
   const name = String(formData.get("name") ?? "").trim();
   const type = String(formData.get("type") ?? "");
   const required = String(formData.get("required") ?? "") === "on";
   const multiSelect = String(formData.get("multiSelect") ?? "") === "on";
+  const maxSelections = parseMaxSelections(formData);
+  const defaultOptionId = String(formData.get("defaultOptionId") ?? "").trim() || null;
 
   if (!id || !name || !modifierTypes.includes(type as (typeof modifierTypes)[number])) {
+    return {
+      ...createModifierTemplateFormState(
+        "error",
+        "Please complete the template fields before saving.",
+      ),
+    };
+  }
+
+  const template = await prisma.modifierTemplate.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      defaultOptionId: true,
+      options: {
+        orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
+        select: {
+          id: true,
+        },
+      },
+    },
+  });
+
+  if (!template) {
     return;
   }
+
+  const resolvedDefaultOptionId = required
+    ? await resolveDefaultOptionId(id, defaultOptionId, template.defaultOptionId)
+    : null;
 
   await prisma.modifierTemplate.update({
     where: { id },
@@ -122,10 +234,16 @@ export async function updateModifierTemplateAction(formData: FormData) {
       type: type as (typeof modifierTypes)[number],
       required,
       multiSelect,
+      maxSelections,
+      defaultOptionId: resolvedDefaultOptionId,
     },
   });
 
   revalidateModifierPaths(id);
+
+  return {
+    ...createModifierTemplateFormState("success", "Template saved successfully."),
+  };
 }
 
 export async function deleteModifierTemplateAction(formData: FormData) {
@@ -165,14 +283,22 @@ export async function addModifierTemplateOptionAction(formData: FormData) {
   revalidateModifierPaths(modifierTemplateId);
 }
 
-export async function updateModifierTemplateOptionAction(formData: FormData) {
+export async function updateModifierTemplateOptionAction(
+  _state: ModifierTemplateFormState,
+  formData: FormData,
+): Promise<ModifierTemplateFormState> {
   const id = String(formData.get("id") ?? "");
   const modifierTemplateId = String(formData.get("modifierTemplateId") ?? "");
   const name = String(formData.get("name") ?? "").trim();
   const priceDelta = Number(formData.get("priceDelta") ?? 0);
 
   if (!id || !modifierTemplateId || !name || !Number.isFinite(priceDelta)) {
-    return;
+    return {
+      ...createModifierTemplateFormState(
+        "error",
+        "Please complete the option fields before saving.",
+      ),
+    };
   }
 
   await prisma.modifierTemplateOption.update({
@@ -184,6 +310,10 @@ export async function updateModifierTemplateOptionAction(formData: FormData) {
   });
 
   revalidateModifierPaths(modifierTemplateId);
+
+  return {
+    ...createModifierTemplateFormState("success", "Option saved successfully."),
+  };
 }
 
 export async function deleteModifierTemplateOptionAction(formData: FormData) {

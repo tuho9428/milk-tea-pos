@@ -4,18 +4,22 @@ import {
   addModifierTemplateAction,
   deleteModifierTemplateAction,
 } from "@/app/admin/modifiers/actions";
+import { ModifierTemplateForm } from "@/app/admin/modifiers/modifier-template-form";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { prisma } from "@/lib/prisma";
 import { cn } from "@/lib/utils";
-
-const modifierTypes = ["SIZE", "SUGAR", "ICE", "TOPPING", "OTHER"] as const;
 
 export default async function AdminModifiersPage() {
   const templates = await prisma.modifierTemplate.findMany({
     include: {
+      defaultOption: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
       _count: {
         select: {
           options: true,
@@ -57,27 +61,7 @@ export default async function AdminModifiersPage() {
             <CardTitle>Create Template</CardTitle>
           </CardHeader>
           <CardContent className="pt-6">
-            <form action={addModifierTemplateAction} className="grid gap-3 sm:grid-cols-2">
-              <Input name="name" placeholder="Template name" required />
-              <select name="type" defaultValue="OTHER" className="field-select">
-                {modifierTypes.map((type) => (
-                  <option key={type} value={type}>
-                    {type}
-                  </option>
-                ))}
-              </select>
-              <label className="inline-flex items-center gap-2 rounded-xl border border-border bg-secondary/45 px-4 py-3 text-sm text-foreground">
-                <input name="required" type="checkbox" className="field-checkbox" />
-                Required
-              </label>
-              <label className="inline-flex items-center gap-2 rounded-xl border border-border bg-secondary/45 px-4 py-3 text-sm text-foreground">
-                <input name="multiSelect" type="checkbox" className="field-checkbox" />
-                Multi-select
-              </label>
-              <button type="submit" className={cn(buttonVariants({ size: "sm" }), "sm:col-span-2 w-fit")}>
-                Add Template
-              </button>
-            </form>
+            <ModifierTemplateForm action={addModifierTemplateAction} submitLabel="Add Template" />
           </CardContent>
         </Card>
 
@@ -95,6 +79,11 @@ export default async function AdminModifiersPage() {
                       </Badge>
                       <Badge variant={template.multiSelect ? "primary" : "default"}>
                         {template.multiSelect ? "Multi-select" : "Single-select"}
+                      </Badge>
+                      {template.multiSelect ? <Badge variant="primary">Max {template.maxSelections}</Badge> : null}
+                      <Badge variant="default">
+                        Default{" "}
+                        {template.defaultOption?.name ?? "first option"}
                       </Badge>
                     </div>
                   </div>

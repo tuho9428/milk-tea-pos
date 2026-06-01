@@ -7,6 +7,8 @@ export type ProductDetailGroup = {
   name: string;
   required: boolean;
   multiSelect: boolean;
+  maxSelections: number;
+  defaultOptionId: string | null;
   options: {
     id: string;
     name: string;
@@ -79,7 +81,8 @@ export function ProductDetailContent({
             <p className="eyebrow">Customization</p>
             <p className="mt-3 text-sm leading-6 text-muted-foreground">
               Choose from shared milk tea modifiers like size, sugar, ice, and
-              toppings. Required groups must be selected before the item can be added.
+              toppings. Required groups come preselected, and multi-select groups
+              use the limit set by the admin before the item can be added.
             </p>
           </div>
         </div>

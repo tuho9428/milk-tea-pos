@@ -10,6 +10,8 @@ import {
   updateModifierTemplateAction,
   updateModifierTemplateOptionAction,
 } from "@/app/admin/modifiers/actions";
+import { ModifierTemplateForm } from "@/app/admin/modifiers/modifier-template-form";
+import { ModifierTemplateOptionForm } from "@/app/admin/modifiers/modifier-template-option-form";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,8 +19,6 @@ import { Input } from "@/components/ui/input";
 import { formatPrice } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { cn } from "@/lib/utils";
-
-const modifierTypes = ["SIZE", "SUGAR", "ICE", "TOPPING", "OTHER"] as const;
 
 type AdminModifierTemplatePageProps = {
   params: Promise<{ id: string }>;
@@ -32,6 +32,12 @@ export default async function AdminModifierTemplatePage({
   const template = await prisma.modifierTemplate.findUnique({
     where: { id },
     include: {
+      defaultOption: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
       options: {
         orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
       },
@@ -72,46 +78,42 @@ export default async function AdminModifierTemplatePage({
               Edit the shared template and its option list. Changes affect every menu
               item that uses this template.
             </CardDescription>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Badge variant={template.required ? "warning" : "default"}>
+                {template.required ? "Required" : "Optional"}
+              </Badge>
+              <Badge variant={template.multiSelect ? "primary" : "default"}>
+                {template.multiSelect ? "Multi-select" : "Single-select"}
+              </Badge>
+              {template.multiSelect ? <Badge variant="primary">Max {template.maxSelections}</Badge> : null}
+              <Badge variant="default">
+                Default {template.defaultOption?.name ?? "first option"}
+              </Badge>
+            </div>
           </CardHeader>
           <CardContent className="relative z-10 pt-6">
-            <form action={updateModifierTemplateAction} className="grid gap-3 sm:grid-cols-2">
-              <input type="hidden" name="id" value={template.id} />
-              <Input name="name" defaultValue={template.name} required />
-              <select name="type" defaultValue={template.type} className="field-select">
-                {modifierTypes.map((type) => (
-                  <option key={type} value={type}>
-                    {type}
-                  </option>
-                ))}
-              </select>
-              <label className="inline-flex items-center gap-2 rounded-xl border border-border bg-secondary/45 px-4 py-3 text-sm text-foreground">
-                <input
-                  name="required"
-                  type="checkbox"
-                  defaultChecked={template.required}
-                  className="field-checkbox"
-                />
-                Required
-              </label>
-              <label className="inline-flex items-center gap-2 rounded-xl border border-border bg-secondary/45 px-4 py-3 text-sm text-foreground">
-                <input
-                  name="multiSelect"
-                  type="checkbox"
-                  defaultChecked={template.multiSelect}
-                  className="field-checkbox"
-                />
-                Multi-select
-              </label>
-              <div className="sm:col-span-2 flex flex-wrap gap-2">
-                <Badge variant="success">
-                  Attached to {template._count.menuItems} item
-                  {template._count.menuItems === 1 ? "" : "s"}
-                </Badge>
-              </div>
-              <button type="submit" className={cn(buttonVariants({ size: "sm" }), "sm:col-span-2 w-fit")}>
-                Save Template
-              </button>
-            </form>
+            <ModifierTemplateForm
+              action={updateModifierTemplateAction}
+              submitLabel="Save Template"
+              initialId={template.id}
+              initialName={template.name}
+              initialType={template.type}
+              initialRequired={template.required}
+              initialMultiSelect={template.multiSelect}
+              initialMaxSelections={template.maxSelections}
+              showDefaultOptionSelect
+              defaultOptionId={template.defaultOptionId}
+              defaultOptionChoices={template.options.map((option) => ({
+                id: option.id,
+                name: option.name,
+              }))}
+            />
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Badge variant="success">
+                Attached to {template._count.menuItems} item
+                {template._count.menuItems === 1 ? "" : "s"}
+              </Badge>
+            </div>
 
             <form action={deleteModifierTemplateAction} className="mt-4">
               <input type="hidden" name="id" value={template.id} />
@@ -147,28 +149,14 @@ export default async function AdminModifierTemplatePage({
             ) : (
               template.options.map((option) => (
                 <div key={option.id} className="soft-panel p-4">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <form
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                    <ModifierTemplateOptionForm
                       action={updateModifierTemplateOptionAction}
-                      className="grid flex-1 gap-3 sm:grid-cols-[minmax(0,1fr)_180px_auto]"
-                    >
-                      <input type="hidden" name="id" value={option.id} />
-                      <input type="hidden" name="modifierTemplateId" value={template.id} />
-                      <Input name="name" defaultValue={option.name} required />
-                      <Input
-                        name="priceDelta"
-                        type="number"
-                        step="0.01"
-                        defaultValue={Number(option.priceDelta)}
-                        required
-                      />
-                      <button
-                        type="submit"
-                        className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
-                      >
-                        Save Option
-                      </button>
-                    </form>
+                      optionId={option.id}
+                      modifierTemplateId={template.id}
+                      initialName={option.name}
+                      initialPriceDelta={Number(option.priceDelta)}
+                    />
 
                     <div className="flex flex-wrap gap-2">
                       <form action={moveModifierTemplateOptionUpAction}>

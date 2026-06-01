@@ -99,6 +99,12 @@ body {
     @apply border-border outline-ring/50;
   }
 
+  button:not(:disabled),
+  [type="button"]:not(:disabled),
+  [type="submit"]:not(:disabled) {
+    cursor: pointer;
+  }
+
   html {
     @apply font-sans text-[15px] text-foreground;
   }
