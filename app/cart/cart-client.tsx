@@ -93,7 +93,7 @@ export function CartClient() {
                       <button
                         type="button"
                         onClick={() => updateStoredCartItemQuantity(index, row.quantity - 1)}
-                        className="px-4 py-2 text-foreground transition hover:bg-secondary"
+                        className="px-4 py-2 text-foreground transition hover:bg-secondary rounded-full"
                         aria-label={`Decrease quantity for ${row.name}`}
                       >
                         -
@@ -104,7 +104,7 @@ export function CartClient() {
                       <button
                         type="button"
                         onClick={() => updateStoredCartItemQuantity(index, row.quantity + 1)}
-                        className="px-4 py-2 text-foreground transition hover:bg-secondary"
+                        className="px-4 py-2 text-foreground transition hover:bg-secondary rounded-full"
                         aria-label={`Increase quantity for ${row.name}`}
                       >
                         +

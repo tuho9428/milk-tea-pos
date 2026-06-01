@@ -182,12 +182,12 @@ export function AddToCartForm({
                       disabled={isDisabled}
                       onClick={() => toggleOption(group, option.id)}
                     className={cn(
-                      "flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left text-sm transition-all duration-200",
+                      "flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left text-sm transition",
                       isSelected
-                        ? "border-primary/22 bg-primary-soft text-primary shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] hover:-translate-y-0.5 hover:border-primary/28 hover:bg-primary-soft hover:shadow-[0_8px_18px_rgba(31,26,23,0.08)]"
-                        : "border-border bg-card text-foreground hover:-translate-y-0.5 hover:border-primary/18 hover:bg-background hover:shadow-[0_8px_18px_rgba(31,26,23,0.05)]",
+                        ? "border-primary/22 bg-primary-soft text-primary hover:bg-primary/50"
+                        : "border-border bg-card text-foreground hover:bg-primary/5 hover:border-primary/25",
                       isDisabled &&
-                        "cursor-not-allowed border-border/70 bg-muted/45 text-muted-foreground opacity-70 shadow-none hover:translate-y-0 hover:bg-muted/45 hover:shadow-none",
+                        "cursor-not-allowed border-border/70 bg-muted/45 text-muted-foreground opacity-70 hover:bg-muted/45",
                     )}
                   >
                       <span className="font-medium">{option.name}</span>
@@ -213,7 +213,7 @@ export function AddToCartForm({
               <button
                 type="button"
                 onClick={() => setQuantity((current) => Math.max(1, current - 1))}
-                className="px-4 py-2 text-foreground transition hover:bg-secondary"
+                className="px-4 py-2 text-foreground transition hover:bg-secondary rounded-full"
                 aria-label="Decrease quantity"
               >
                 -
@@ -224,7 +224,7 @@ export function AddToCartForm({
               <button
                 type="button"
                 onClick={() => setQuantity((current) => current + 1)}
-                className="px-4 py-2 text-foreground transition hover:bg-secondary"
+                className="px-4 py-2 text-foreground transition hover:bg-secondary rounded-full"
                 aria-label="Increase quantity"
               >
                 +
