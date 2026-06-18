@@ -17,9 +17,11 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useSyncExternalStore, useTransition } from "react";
 
 import { updateOrderStatusAction } from "@/app/admin/orders/actions";
+import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatPrice } from "@/lib/format";
+import { formatPaymentStatusLabel, getPaymentStatusVariant, type PaymentStatus } from "@/lib/payment";
 import { cn } from "@/lib/utils";
 
 export type BoardColumnStatus = "PENDING" | "MAKING" | "READY" | "COMPLETED";
@@ -29,6 +31,9 @@ export type BoardOrder = {
   displayOrderNumber: string;
   customerName: string;
   status: BoardColumnStatus;
+  paymentStatus: PaymentStatus;
+  paymentProvider: string;
+  paidAt: string | null;
   total: number;
   createdAt: string;
   items: Array<{
@@ -462,6 +467,16 @@ function BoardCardContent({
                 <p className="mt-1 font-mono text-xs text-muted-foreground">
                   #{order.displayOrderNumber}
                 </p>
+                <div className="mt-2">
+                  <Badge variant={getPaymentStatusVariant(order.paymentStatus)}>
+                    {formatPaymentStatusLabel(order.paymentStatus)}
+                  </Badge>
+                </div>
+                {order.paymentStatus === "PAID" && order.paidAt ? (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Paid {formatTimestamp(order.paidAt)} via {order.paymentProvider}
+                  </p>
+                ) : null}
               </div>
               <p className="text-sm font-semibold text-foreground">
                 {formatPrice(order.total)}

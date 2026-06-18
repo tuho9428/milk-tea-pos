@@ -90,6 +90,9 @@ export default async function AdminOrdersBoardPage({
     displayOrderNumber: order.displayOrderNumber,
     customerName: order.customerName,
     status: order.status as BoardColumnStatus,
+    paymentStatus: order.paymentStatus,
+    paymentProvider: order.paymentProvider,
+    paidAt: order.paidAt ? order.paidAt.toISOString() : null,
     total: Number(order.total),
     createdAt: order.createdAt.toISOString(),
     items: order.items.map((item) => ({

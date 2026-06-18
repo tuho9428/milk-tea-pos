@@ -2,15 +2,98 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { ClearCartOnLoad } from "@/app/order/[id]/clear-cart-on-load";
+import { RefreshUntilPaid } from "@/app/order/[id]/refresh-until-paid";
+import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { formatPrice, formatTaxRate } from "@/lib/format";
+import { formatPaymentStatusLabel, getPaymentStatusVariant } from "@/lib/payment";
 import { prisma } from "@/lib/prisma";
+import { getStripe } from "@/lib/stripe";
 import { cn } from "@/lib/utils";
 
 type OrderConfirmationPageProps = {
   params: Promise<{ id: string }>;
-  searchParams?: Promise<{ clearCart?: string }>;
+  searchParams?: Promise<{
+    clearCart?: string;
+    payment?: string;
+    session_id?: string;
+    orderId?: string;
+  }>;
 };
+
+export const dynamic = "force-dynamic";
+
+function getSessionPaymentIntentId(session: Awaited<ReturnType<ReturnType<typeof getStripe>["checkout"]["sessions"]["retrieve"]>>) {
+  return typeof session.payment_intent === "string" ? session.payment_intent : null;
+}
+
+function getSessionAmountTotal(session: Awaited<ReturnType<ReturnType<typeof getStripe>["checkout"]["sessions"]["retrieve"]>>) {
+  return typeof session.amount_total === "number" ? session.amount_total / 100 : null;
+}
+
+async function reconcileSuccessfulStripeCheckout(orderId: string, sessionId: string | undefined) {
+  if (!sessionId) {
+    return;
+  }
+
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    select: {
+      id: true,
+      paymentStatus: true,
+      stripeCheckoutSessionId: true,
+    },
+  });
+
+  if (!order || order.paymentStatus === "PAID") {
+    return;
+  }
+
+  const stripe = getStripe();
+  let session: Awaited<ReturnType<typeof stripe.checkout.sessions.retrieve>>;
+
+  try {
+    session = await stripe.checkout.sessions.retrieve(sessionId);
+  } catch (error) {
+    console.log(
+      "[stripe:success-page] checkout session reconciliation failed",
+      error instanceof Error ? error.message : error,
+    );
+    return;
+  }
+
+  const sessionOrderId = session.metadata?.orderId || session.client_reference_id;
+
+  if (
+    session.payment_status !== "paid" ||
+    sessionOrderId !== order.id ||
+    order.stripeCheckoutSessionId !== session.id
+  ) {
+    console.log("[stripe:success-page] checkout session not ready for reconciliation", {
+      orderId: order.id,
+      sessionId: session.id,
+      sessionOrderId,
+      paymentStatus: session.payment_status,
+    });
+    return;
+  }
+
+  await prisma.order.update({
+    where: { id: order.id },
+    data: {
+      paymentStatus: "PAID",
+      stripePaymentIntentId: getSessionPaymentIntentId(session),
+      paymentAmount: getSessionAmountTotal(session) ?? undefined,
+      paymentCurrency: session.currency ?? "usd",
+      paidAt: new Date(),
+    },
+  });
+
+  console.log("[stripe:success-page] order payment reconciled", {
+    orderId: order.id,
+    sessionId: session.id,
+  });
+}
 
 export default async function OrderConfirmationPage({
   params,
@@ -18,6 +101,10 @@ export default async function OrderConfirmationPage({
 }: OrderConfirmationPageProps) {
   const { id } = await params;
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
+
+  if (resolvedSearchParams?.payment === "success") {
+    await reconcileSuccessfulStripeCheckout(id, resolvedSearchParams.session_id);
+  }
 
   const order = await prisma.order.findUnique({
     where: { id },
@@ -39,9 +126,12 @@ export default async function OrderConfirmationPage({
     notFound();
   }
 
+  const paymentNotice = resolvedSearchParams?.payment;
+
   return (
     <main className="page-shell">
       <ClearCartOnLoad shouldClear={resolvedSearchParams?.clearCart === "1"} />
+      <RefreshUntilPaid enabled={resolvedSearchParams?.payment === "success" && order.paymentStatus !== "PAID"} />
       <div className="page-wrap space-y-6">
         <section className="hero-panel px-7 py-8">
           <div className="relative z-10 space-y-6">
@@ -55,6 +145,22 @@ export default async function OrderConfirmationPage({
               </div>
             </div>
 
+            {paymentNotice === "success" ? (
+              <p className="status-pill status-success w-fit">
+                Stripe Checkout completed. We are confirming the payment securely with Stripe.
+              </p>
+            ) : null}
+            {paymentNotice === "failed" ? (
+              <p className="status-pill status-danger w-fit">
+                Payment could not start. Please return to checkout and try again.
+              </p>
+            ) : null}
+            {paymentNotice === "cancelled" ? (
+              <p className="status-pill status-warning w-fit">
+                Payment was cancelled. Your pending order is still available.
+              </p>
+            ) : null}
+
             <dl className="grid gap-4 sm:grid-cols-2">
               <div className="soft-panel p-4">
                 <dt className="eyebrow">Order Number</dt>
@@ -66,6 +172,22 @@ export default async function OrderConfirmationPage({
                 <dt className="eyebrow">Status</dt>
                 <dd className="mt-2">
                   <span className="status-pill status-warning">{order.status}</span>
+                </dd>
+              </div>
+              <div className="soft-panel p-4">
+                <dt className="eyebrow">Payment</dt>
+                <dd className="mt-2 flex flex-wrap items-center gap-2">
+                  <Badge variant={getPaymentStatusVariant(order.paymentStatus)}>
+                    {formatPaymentStatusLabel(order.paymentStatus)}
+                  </Badge>
+                  {order.paidAt ? (
+                    <span className="text-xs text-muted-foreground">
+                      Paid {new Intl.DateTimeFormat("en-US", {
+                        dateStyle: "medium",
+                        timeStyle: "short",
+                      }).format(order.paidAt)}
+                    </span>
+                  ) : null}
                 </dd>
               </div>
               <div className="soft-panel p-4">

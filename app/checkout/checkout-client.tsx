@@ -1,10 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useSyncExternalStore } from "react";
-import { useRouter } from "next/navigation";
+import { useActionState, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 
-import { createOrderAction } from "@/app/checkout/actions";
+import {
+  createOrderAction,
+} from "@/app/checkout/actions";
+import {
+  checkoutActionInitialState,
+} from "@/app/checkout/checkout-action-state";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,7 +21,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { calculateCartSubtotal } from "@/lib/cart";
+import { calculateCartSubtotal, type CartItem } from "@/lib/cart";
 import { getStoredCart, subscribeToStoredCart } from "@/lib/cart-storage";
 import { formatPrice } from "@/lib/format";
 import { calculateOrderPricing } from "@/lib/tax";
@@ -28,12 +33,20 @@ type CheckoutClientProps = {
 
 export function CheckoutClient({ taxRate }: CheckoutClientProps) {
   const router = useRouter();
-  const cartItems = useSyncExternalStore(subscribeToStoredCart, getStoredCart, () => []);
+  const searchParams = useSearchParams();
+  const [formState, formAction, isPending] = useActionState(
+    createOrderAction,
+    checkoutActionInitialState,
+  );
+  const resumeOrderId = formState.orderId ?? searchParams.get("orderId");
+  const [cartItems, setCartItems] = useState<CartItem[]>(() => getStoredCart());
 
   const pricing = useMemo(
     () => calculateOrderPricing(calculateCartSubtotal(cartItems), taxRate),
     [cartItems, taxRate],
   );
+
+  useEffect(() => subscribeToStoredCart(() => setCartItems(getStoredCart())), []);
 
   useEffect(() => {
     const handlePageShow = () => {
@@ -47,12 +60,19 @@ export function CheckoutClient({ taxRate }: CheckoutClientProps) {
     };
   }, [router]);
 
+  useEffect(() => {
+    if (formState.status === "success" && formState.redirectUrl) {
+      window.location.assign(formState.redirectUrl);
+    }
+  }, [formState.orderId, formState.redirectUrl, formState.status]);
+
+  const paymentNotice = searchParams.get("payment");
+  const resumePayment = Boolean(resumeOrderId);
+
   return (
-    <form
-      action={createOrderAction}
-      className="page-wrap-wide grid gap-6 lg:grid-cols-[1.45fr_0.78fr]"
-    >
+    <form action={formAction} className="page-wrap-wide grid gap-6 lg:grid-cols-[1.45fr_0.78fr]">
       <input type="hidden" name="cartPayload" value={JSON.stringify(cartItems)} />
+      {resumePayment ? <input type="hidden" name="existingOrderId" value={resumeOrderId ?? ""} /> : null}
 
       <Card className="hero-panel lg:col-span-1">
         <CardHeader className="relative z-10 gap-3 border-b border-border">
@@ -60,9 +80,22 @@ export function CheckoutClient({ taxRate }: CheckoutClientProps) {
           <div className="space-y-2">
             <CardTitle className="page-title text-[2.2rem]">Checkout</CardTitle>
             <CardDescription>
-              Enter customer details and place this cart as a real order.
+              Enter customer details and place this cart as a real order. Payment is securely handled by Stripe Checkout.
             </CardDescription>
           </div>
+          {paymentNotice === "cancelled" ? (
+            <p className="status-pill status-warning w-fit">
+              Payment cancelled. Your pending order can be resumed below.
+            </p>
+          ) : null}
+          {paymentNotice === "failed" ? (
+            <p className="status-pill status-danger w-fit">
+              Stripe could not start. You can retry the same order below.
+            </p>
+          ) : null}
+          {formState.status === "error" ? (
+            <p className="status-pill status-danger w-fit">{formState.message}</p>
+          ) : null}
         </CardHeader>
 
         <CardContent className="relative z-10 pt-6">
@@ -160,8 +193,12 @@ export function CheckoutClient({ taxRate }: CheckoutClientProps) {
           </dl>
 
           <div className="mt-5 flex flex-wrap gap-3">
-            <Button type="submit" disabled={cartItems.length === 0} size="lg" className="flex-1">
-              Place Order
+            <Button type="submit" disabled={cartItems.length === 0 || isPending} size="lg" className="flex-1">
+              {isPending
+                ? "Starting Stripe..."
+                : resumePayment
+                  ? "Continue Payment"
+                  : "Place Order"}
             </Button>
             <Link
               href={cartItems.length === 0 ? "/menu" : "/cart"}

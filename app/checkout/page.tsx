@@ -1,4 +1,4 @@
-import { CheckoutClient } from "@/app/checkout/checkout-client";
+import { CheckoutClientLoader } from "@/app/checkout/checkout-client-loader";
 import { getStoreTaxRate } from "@/lib/store-settings";
 
 export default async function CheckoutPage() {
@@ -6,7 +6,7 @@ export default async function CheckoutPage() {
 
   return (
     <main className="page-shell">
-      <CheckoutClient taxRate={taxRate} />
+      <CheckoutClientLoader taxRate={taxRate} />
     </main>
   );
 }

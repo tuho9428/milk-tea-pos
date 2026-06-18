@@ -44,6 +44,7 @@ This project is built around two sides of the product:
 ### Current Feature Set
 
 - Customer storefront with menu, cart, checkout, and order confirmation flow
+- Stripe Checkout test-mode payment flow with webhook-confirmed payment status
 - Admin dashboard with order and revenue summaries
 - Orders list with detailed order views
 - Kanban-style orders board for kitchen and fulfillment workflow
@@ -95,6 +96,22 @@ DATABASE_URL=postgresql://USER:PASSWORD@HOST:PORT/DATABASE
 
 The app and Prisma client require `DATABASE_URL` to be present.
 
+If you want to run Stripe Checkout in development, also set:
+
+```bash
+STRIPE_SECRET_KEY=sk_test_...
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+```
+
+Notes:
+
+- The app uses Stripe Checkout hosted payment pages in test mode.
+- Card details are handled by Stripe, not stored in this app.
+- For local webhook testing, forward events with the Stripe CLI to `/api/webhooks/stripe`.
+- `NEXT_PUBLIC_APP_URL` should point at your local or deployed app base URL.
+
 ### Install Dependencies
 
 ```bash
@@ -129,6 +146,8 @@ pnpm start
 - `pnpm start` runs the production server
 - `pnpm lint` runs ESLint
 - `pnpm db:seed` inserts sample menu and order data
+- `pnpm db:seed` inserts sample menu and order data
+- Stripe webhook events are confirmed through `/api/webhooks/stripe` during checkout
 
 ## Project Structure
 
@@ -153,7 +172,7 @@ lib/
 
 ## Notes
 
-- The app uses Prisma client output generated into `app/generated/prisma`
+- The app uses Prisma client output generated into `app/generated/prisma-stripe`
 - Some flows are demo-oriented, but the app already uses persisted data for menu, settings, and orders
 - The homepage still presents the project as a static demo, even though the admin and order flows are database-backed
 

@@ -7,6 +7,7 @@ import { buttonVariants } from "@/components/ui/button-variants";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatPrice, formatTaxRate } from "@/lib/format";
+import { formatPaymentStatusLabel, getPaymentStatusVariant } from "@/lib/payment";
 import { prisma } from "@/lib/prisma";
 import { cn } from "@/lib/utils";
 
@@ -166,6 +167,9 @@ export default async function AdminOrdersPage({
                         <div className="space-y-2">
                           <Badge variant={statusVariants[order.status]}>
                             {formatStatusLabel(order.status)}
+                          </Badge>
+                          <Badge variant={getPaymentStatusVariant(order.paymentStatus)}>
+                            {formatPaymentStatusLabel(order.paymentStatus)}
                           </Badge>
                           <p className="text-xs text-muted-foreground">
                             Tax rate: {formatTaxRate(Number(order.taxRateApplied))}

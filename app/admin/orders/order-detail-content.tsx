@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatPrice, formatTaxRate } from "@/lib/format";
+import { formatPaymentStatusLabel, getPaymentStatusVariant } from "@/lib/payment";
 import { cn } from "@/lib/utils";
 
 const editableStatuses = ["PENDING", "MAKING", "READY", "COMPLETED", "CANCELED"] as const;
@@ -62,9 +63,14 @@ export function OrderDetailContent({
                 Review customer info, totals, and all item modifiers.
               </CardDescription>
             </div>
-            <Badge variant={statusVariants[order.status]}>
-              {formatStatusLabel(order.status)}
-            </Badge>
+            <div className="flex flex-wrap justify-end gap-2">
+              <Badge variant={statusVariants[order.status]}>
+                {formatStatusLabel(order.status)}
+              </Badge>
+              <Badge variant={getPaymentStatusVariant(order.paymentStatus)}>
+                {formatPaymentStatusLabel(order.paymentStatus)}
+              </Badge>
+            </div>
           </div>
         </CardHeader>
       </Card>
@@ -97,7 +103,7 @@ export function OrderDetailContent({
               {item.modifiers.length > 0 ? (
                 <ul className="mt-3 space-y-1 pl-4 text-sm text-muted-foreground">
                   {item.modifiers.map((modifier) => (
-                    <li key={modifier.id}>• {modifier.name}</li>
+                    <li key={modifier.id}>- {modifier.name}</li>
                   ))}
                 </ul>
               ) : (
@@ -146,6 +152,9 @@ export function OrderDetailContent({
                 <Badge variant={statusVariants[order.status]}>
                   {formatStatusLabel(order.status)}
                 </Badge>
+                <Badge variant={getPaymentStatusVariant(order.paymentStatus)}>
+                  {formatPaymentStatusLabel(order.paymentStatus)}
+                </Badge>
                 <form action={updateOrderStatusAction} className="flex flex-wrap items-center gap-2">
                   <input type="hidden" name="orderId" value={order.id} />
                   <select
@@ -165,6 +174,11 @@ export function OrderDetailContent({
                   </button>
                 </form>
               </div>
+              <p className="mt-3 text-xs text-muted-foreground">
+                {order.paidAt
+                  ? `Paid on ${formatTimestamp(order.paidAt)} via ${order.paymentProvider}`
+                  : `Payment provider: ${order.paymentProvider}`}
+              </p>
             </div>
           </div>
         </CardContent>
