@@ -1,36 +1,186 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Milk Tea POS
+
+`milk-tea-pos` is a Next.js point-of-sale demo for a milk tea shop. It includes a customer ordering flow and an admin workspace for managing menu items, modifiers, orders, and store settings.
+
+## Overview
+
+This project is built around two sides of the product:
+
+- A customer-facing ordering experience for browsing the menu, customizing drinks, and placing orders
+- An admin-facing operations experience for tracking orders, updating statuses, and maintaining store data
+
+## For Users
+
+### Customer Features
+
+- Browse the menu and open item detail pages
+- Customize drinks with modifier groups such as size, sugar, ice, and toppings
+- Add items to the cart and review selections before checkout
+- Submit an order through the checkout flow
+- View an order confirmation page after placing an order
+
+### Admin Features
+
+- View a dashboard with order totals, pending/completed counts, revenue, and recent orders
+- Review all incoming orders in a dedicated orders list
+- Track operational workflow on a board grouped by order status
+- Open order details and update order status
+- Manage menu items and their availability
+- Manage reusable modifier templates and options
+- Update store settings such as tax rate
+
+## For Developers
+
+### Tech Stack
+
+- Next.js 16 App Router
+- React 19
+- TypeScript
+- Prisma ORM
+- PostgreSQL
+- Tailwind CSS 4
+- shadcn/ui components
+
+### Current Feature Set
+
+- Customer storefront with menu, cart, checkout, and order confirmation flow
+- Stripe Checkout test-mode payment flow with webhook-confirmed payment status
+- Admin dashboard with order and revenue summaries
+- Orders list with detailed order views
+- Kanban-style orders board for kitchen and fulfillment workflow
+- Menu management for categories and items
+- Modifier template management for reusable drink customization
+- Store settings with configurable tax rate
+- Intercepted modal routes for menu item and admin order detail views
+
+### Data Model
+
+The Prisma schema currently includes:
+
+- `StoreSettings`
+- `Category`
+- `MenuItem`
+- `ModifierTemplate`
+- `ModifierTemplateOption`
+- `MenuItemModifierTemplate`
+- `ModifierGroup`
+- `ModifierOption`
+- `Order`
+- `OrderItem`
+- `OrderItemModifier`
+
+Order status values:
+
+- `PENDING`
+- `PAID`
+- `MAKING`
+- `READY`
+- `COMPLETED`
+- `CANCELED`
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
+
+- Node.js 20+
+- pnpm
+- A PostgreSQL database
+
+### Environment Variables
+
+Create a local environment file and set:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+DATABASE_URL=postgresql://USER:PASSWORD@HOST:PORT/DATABASE
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+The app and Prisma client require `DATABASE_URL` to be present.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+If you want to run Stripe Checkout in development, also set:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+STRIPE_SECRET_KEY=sk_test_...
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+```
 
-## Learn More
+Notes:
 
-To learn more about Next.js, take a look at the following resources:
+- The app uses Stripe Checkout hosted payment pages in test mode.
+- Card details are handled by Stripe, not stored in this app.
+- For local webhook testing, forward events with the Stripe CLI to `/api/webhooks/stripe`.
+- `NEXT_PUBLIC_APP_URL` should point at your local or deployed app base URL.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Install Dependencies
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+pnpm install
+```
 
-## Deploy on Vercel
+### Run the App
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+pnpm dev
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Open `http://localhost:3000`.
+
+### Seed Sample Data
+
+```bash
+pnpm db:seed
+```
+
+### Production Build
+
+```bash
+pnpm build
+pnpm start
+```
+
+## Scripts
+
+- `pnpm dev` starts the local Next.js development server
+- `pnpm build` generates Prisma client output and creates a production build
+- `pnpm start` runs the production server
+- `pnpm lint` runs ESLint
+- `pnpm db:seed` inserts sample menu and order data
+- `pnpm db:seed` inserts sample menu and order data
+- Stripe webhook events are confirmed through `/api/webhooks/stripe` during checkout
+
+## Project Structure
+
+```text
+app/
+  page.tsx                Home page
+  menu/                   Customer menu and product detail flow
+  cart/                   Cart experience
+  checkout/               Checkout UI and order creation
+  order/[id]/             Order confirmation page
+  admin/                  Admin dashboard and management tools
+prisma/
+  schema.prisma           Database schema
+  seed.ts                 Seed data script
+components/
+  ui/                     Reusable UI primitives
+lib/
+  prisma.ts               Prisma client setup
+  store-settings.ts       Store settings helpers
+  tax.ts                  Pricing and tax helpers
+```
+
+## Notes
+
+- The app uses Prisma client output generated into `app/generated/prisma-stripe`
+- Some flows are demo-oriented, but the app already uses persisted data for menu, settings, and orders
+- The homepage still presents the project as a static demo, even though the admin and order flows are database-backed
+
+## Future Ideas
+
+- Kitchen ticket printing
+- Order timing and SLA tracking
+- Inventory and stock controls
+- Sales analytics by date, item, and category
+- Cashier mode for in-store ordering
+- Loyalty points and customer profiles

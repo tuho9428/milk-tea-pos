@@ -4,9 +4,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { buttonVariants } from "@/components/ui/button-variants";
 import type { CartItem } from "@/lib/cart";
 import { addToStoredCart } from "@/lib/cart-storage";
 import { formatPrice } from "@/lib/format";
+import { cn } from "@/lib/utils";
 
 type ModifierOptionView = {
   id: string;
@@ -19,6 +21,8 @@ type ModifierGroupView = {
   name: string;
   required: boolean;
   multiSelect: boolean;
+  maxSelections: number;
+  defaultOptionId: string | null;
   options: ModifierOptionView[];
 };
 
@@ -30,6 +34,32 @@ type AddToCartFormProps = {
   showCartLink?: boolean;
 };
 
+function getSelectionLimit(group: ModifierGroupView) {
+  if (!group.multiSelect) {
+    return 1;
+  }
+
+  return Math.max(1, Math.min(group.maxSelections, group.options.length));
+}
+
+function getInitialSelections(groups: ModifierGroupView[]) {
+  return groups.reduce<Record<string, string[]>>((acc, group) => {
+    if (!group.required || group.options.length === 0) {
+      return acc;
+    }
+
+    const defaultOptionId =
+      group.options.find((option) => option.id === group.defaultOptionId)?.id ??
+      group.options[0]?.id;
+
+    if (defaultOptionId) {
+      acc[group.id] = [defaultOptionId];
+    }
+
+    return acc;
+  }, {});
+}
+
 export function AddToCartForm({
   menuItem,
   groups,
@@ -39,7 +69,9 @@ export function AddToCartForm({
 }: AddToCartFormProps) {
   const router = useRouter();
   const [quantity, setQuantity] = useState(1);
-  const [selectedByGroup, setSelectedByGroup] = useState<Record<string, string[]>>({});
+  const [selectedByGroup, setSelectedByGroup] = useState<Record<string, string[]>>(() =>
+    getInitialSelections(groups),
+  );
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const selectedModifiers = groups.flatMap((group) => {
@@ -58,14 +90,14 @@ export function AddToCartForm({
     (menuItem.basePrice +
       selectedModifiers.reduce((sum, modifier) => sum + modifier.priceDelta, 0));
 
-  function toggleOption(groupId: string, optionId: string, multiSelect: boolean) {
+  function toggleOption(group: ModifierGroupView, optionId: string) {
     setSelectedByGroup((current) => {
-      const currentGroup = current[groupId] ?? [];
+      const currentGroup = current[group.id] ?? [];
 
-      if (!multiSelect) {
+      if (!group.multiSelect) {
         return {
           ...current,
-          [groupId]: [optionId],
+          [group.id]: [optionId],
         };
       }
 
@@ -73,9 +105,15 @@ export function AddToCartForm({
         ? currentGroup.filter((id) => id !== optionId)
         : [...currentGroup, optionId];
 
+      const selectionLimit = getSelectionLimit(group);
+
+      if (!currentGroup.includes(optionId) && currentGroup.length >= selectionLimit) {
+        return current;
+      }
+
       return {
         ...current,
-        [groupId]: nextGroup,
+        [group.id]: nextGroup,
       };
     });
 
@@ -105,6 +143,7 @@ export function AddToCartForm({
     };
 
     addToStoredCart(cartItem);
+
     if (afterAdd === "menu") {
       router.replace("/menu");
       return;
@@ -115,40 +154,44 @@ export function AddToCartForm({
 
   return (
     <>
-      <div className="mt-6 grid gap-4 md:grid-cols-2">
+      <div className="mt-8 grid gap-4 md:grid-cols-2">
         {groups.map((group) => {
           const selectedIds = selectedByGroup[group.id] ?? [];
+          const selectionLimit = getSelectionLimit(group);
+          const atSelectionLimit = group.multiSelect && selectedIds.length >= selectionLimit;
 
           return (
-            <section
-              key={group.id}
-              className="rounded-xl border border-stone-700 bg-stone-950 p-4"
-            >
+            <section key={group.id} className="soft-panel p-5">
               <div className="flex items-center justify-between gap-3">
-                <h2 className="font-semibold text-white">{group.name}</h2>
-                <span className="text-xs text-stone-400">
-                  {group.multiSelect ? "Choose any" : "Choose one"}
+                <h2 className="text-base font-semibold text-foreground">{group.name}</h2>
+                <span className="text-xs text-muted-foreground">
+                  {group.multiSelect ? `Choose up to ${selectionLimit}` : "Choose one"}
                   {group.required ? " - Required" : " - Optional"}
                 </span>
               </div>
 
-              <div className="mt-3 space-y-2">
+              <div className="mt-4 space-y-2">
                 {group.options.map((option) => {
                   const isSelected = selectedIds.includes(option.id);
+                  const isDisabled = !isSelected && atSelectionLimit;
 
                   return (
                     <button
                       key={option.id}
                       type="button"
-                      onClick={() => toggleOption(group.id, option.id, group.multiSelect)}
-                      className={`flex w-full items-center justify-between rounded-lg border px-3 py-3 text-left transition ${
-                        isSelected
-                          ? "border-amber-300 bg-amber-300/10 text-amber-100"
-                          : "border-stone-700 bg-stone-900 text-stone-200 hover:border-stone-500"
-                      }`}
-                    >
-                      <span>{option.name}</span>
-                      <span className="text-sm">
+                      disabled={isDisabled}
+                      onClick={() => toggleOption(group, option.id)}
+                    className={cn(
+                      "flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left text-sm transition",
+                      isSelected
+                        ? "border-primary/22 bg-primary-soft text-primary hover:bg-primary/50"
+                        : "border-border bg-card text-foreground hover:bg-primary/5 hover:border-primary/25",
+                      isDisabled &&
+                        "cursor-not-allowed border-border/70 bg-muted/45 text-muted-foreground opacity-70 hover:bg-muted/45",
+                    )}
+                  >
+                      <span className="font-medium">{option.name}</span>
+                      <span className="text-muted-foreground">
                         {option.priceDelta === 0
                           ? formatPrice(0)
                           : `+${formatPrice(option.priceDelta)}`}
@@ -162,24 +205,26 @@ export function AddToCartForm({
         })}
       </div>
 
-      <div className="mt-8 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-stone-700 bg-stone-950 p-4">
-        <div>
-          <div className="flex items-center gap-3">
-            <p className="text-xs uppercase tracking-wide text-stone-400">Quantity</p>
-            <div className="inline-flex items-center rounded-lg border border-stone-700">
+      <div className="soft-panel mt-8 flex flex-wrap items-center justify-between gap-6 p-5">
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <p className="eyebrow">Quantity</p>
+            <div className="inline-flex items-center rounded-full border border-border bg-card">
               <button
                 type="button"
                 onClick={() => setQuantity((current) => Math.max(1, current - 1))}
-                className="px-3 py-1 text-stone-200 hover:bg-stone-800"
+                className="px-4 py-2 text-foreground transition hover:bg-secondary rounded-full"
                 aria-label="Decrease quantity"
               >
                 -
               </button>
-              <span className="min-w-10 px-3 py-1 text-center text-stone-100">{quantity}</span>
+              <span className="min-w-12 px-4 py-2 text-center font-medium text-foreground">
+                {quantity}
+              </span>
               <button
                 type="button"
                 onClick={() => setQuantity((current) => current + 1)}
-                className="px-3 py-1 text-stone-200 hover:bg-stone-800"
+                className="px-4 py-2 text-foreground transition hover:bg-secondary rounded-full"
                 aria-label="Increase quantity"
               >
                 +
@@ -187,10 +232,15 @@ export function AddToCartForm({
             </div>
           </div>
 
-          <p className="text-xs uppercase tracking-wide text-stone-400">Current Price</p>
-          <p className="mt-1 text-2xl font-bold text-amber-300">{formatPrice(totalPrice)}</p>
+          <div>
+            <p className="eyebrow">Current Price</p>
+            <p className="mt-2 text-3xl font-semibold tracking-[-0.03em] text-foreground">
+              {formatPrice(totalPrice)}
+            </p>
+          </div>
+
           {selectedModifiers.length > 0 ? (
-            <ul className="mt-2 space-y-1 text-sm text-stone-300">
+            <ul className="space-y-1 text-sm text-muted-foreground">
               {selectedModifiers.map((modifier) => (
                 <li key={`${menuItem.menuItemId}-${modifier.name}`}>
                   {modifier.name}
@@ -199,9 +249,12 @@ export function AddToCartForm({
               ))}
             </ul>
           ) : (
-            <p className="mt-2 text-sm text-stone-500">No modifiers selected yet.</p>
+            <p className="text-sm text-muted-foreground">No modifiers selected yet.</p>
           )}
-          {errorMessage ? <p className="mt-2 text-sm text-red-300">{errorMessage}</p> : null}
+
+          {errorMessage ? (
+            <p className="status-pill status-danger text-sm font-medium">{errorMessage}</p>
+          ) : null}
         </div>
 
         <div className="flex flex-wrap gap-3">
@@ -209,14 +262,14 @@ export function AddToCartForm({
             type="button"
             onClick={handleAddToCart}
             disabled={soldOut}
-            className="rounded-lg bg-amber-300 px-5 py-3 font-semibold text-stone-900 hover:bg-amber-200 disabled:cursor-not-allowed disabled:bg-stone-500 disabled:text-stone-200"
+            className={cn(buttonVariants({ size: "lg" }))}
           >
             Add to Cart
           </button>
           {showCartLink ? (
             <Link
               href="/cart"
-              className="rounded-lg border border-stone-600 px-5 py-3 font-semibold text-stone-100 hover:bg-stone-800"
+              className={cn(buttonVariants({ variant: "outline", size: "lg" }))}
             >
               Go to Cart
             </Link>

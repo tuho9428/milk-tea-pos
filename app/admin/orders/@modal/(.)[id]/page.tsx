@@ -19,7 +19,7 @@ export default async function AdminOrderModalPage({
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-stone-950/60 px-4 py-6 backdrop-blur-sm">
+    <div className="dialog-backdrop">
       <Link
         href="/admin/orders/board"
         className="absolute inset-0"
@@ -28,10 +28,7 @@ export default async function AdminOrderModalPage({
 
       <div className="relative mx-auto max-w-5xl">
         <div className="mb-3 flex justify-end">
-          <Link
-            href="/admin/orders/board"
-            className="rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm font-medium text-stone-700 transition-colors hover:bg-stone-100"
-          >
+          <Link href="/admin/orders/board" className="dialog-close">
             Close
           </Link>
         </div>

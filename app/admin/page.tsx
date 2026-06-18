@@ -1,20 +1,31 @@
 import Link from "next/link";
 
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { buttonVariants } from "@/components/ui/button-variants";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatPrice } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
+import { cn } from "@/lib/utils";
 
 function formatTimestamp(date: Date) {
   return new Intl.DateTimeFormat("en-US", {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(date);
+}
+
+function getStatusVariant(status: string) {
+  switch (status) {
+    case "PENDING":
+      return "warning" as const;
+    case "READY":
+    case "COMPLETED":
+      return "success" as const;
+    case "CANCELED":
+      return "destructive" as const;
+    default:
+      return "primary" as const;
+  }
 }
 
 export default async function AdminDashboardPage() {
@@ -59,22 +70,26 @@ export default async function AdminDashboardPage() {
     {
       label: "Total Orders",
       value: totalOrders.toString(),
-      tone: "text-stone-900",
+      detail: "All recorded orders",
+      tone: "text-foreground",
     },
     {
       label: "Pending Orders",
       value: pendingOrders.toString(),
-      tone: "text-amber-700",
+      detail: "Awaiting kitchen action",
+      tone: "text-primary",
     },
     {
       label: "Completed Orders",
       value: completedOrders.toString(),
-      tone: "text-emerald-700",
+      detail: "Finished and fulfilled",
+      tone: "text-foreground",
     },
     {
       label: "Total Revenue",
       value: formatPrice(Number(completedRevenue._sum.total ?? 0)),
-      tone: "text-sky-700",
+      detail: "Completed order volume",
+      tone: "text-foreground",
     },
   ];
 
@@ -82,124 +97,185 @@ export default async function AdminDashboardPage() {
     {
       href: "/admin/orders",
       title: "Order Management",
-      description: "Review incoming orders and update their status.",
+      description: "Review incoming orders and update statuses from the list view.",
+    },
+    {
+      href: "/admin/orders/board",
+      title: "Kitchen Board",
+      description: "Track active orders through the preparation workflow.",
     },
     {
       href: "/admin/menu",
       title: "Menu Management",
-      description: "Order menu items, edit details, and attach modifier templates.",
+      description: "Edit drinks, availability, and item ordering.",
     },
     {
       href: "/admin/modifiers",
       title: "Modifier Templates",
-      description: "Manage shared modifier sets like size, sugar, and ice.",
+      description: "Maintain shared size, sugar, ice, and topping sets.",
     },
     {
       href: "/admin/settings",
-      title: "Settings",
-      description: "Keep a place ready for store-level admin settings.",
+      title: "Store Settings",
+      description: "Keep store-level values and tax settings aligned.",
     },
   ];
 
+  const filterLinks = [
+    { href: "/admin/orders", label: "All Orders" },
+    { href: "/admin/orders/board", label: "Active Queue" },
+    { href: "/admin/menu", label: "Menu Items" },
+    { href: "/admin/modifiers", label: "Modifiers" },
+  ];
+
   return (
-    <main className="min-h-screen bg-stone-50 px-6 py-10 text-stone-900">
-      <div className="mx-auto max-w-7xl space-y-6">
-        <Card className="border border-stone-200 bg-white py-0">
-          <CardHeader className="border-b border-stone-200 px-6 py-6">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="text-xs font-semibold tracking-[0.2em] text-stone-500">
-                  ADMIN
-                </p>
-                <CardTitle className="mt-2 text-3xl font-bold text-stone-900">
-                  Dashboard
-                </CardTitle>
-                <CardDescription className="mt-1 text-stone-600">
-                  Quick view of order activity and shortcuts to the main admin tools.
-                </CardDescription>
+    <main className="page-shell">
+      <div className="page-wrap-wide space-y-6">
+        <section className="hero-panel px-6 py-7 sm:px-8">
+          <div className="relative z-10 space-y-6">
+            <div className="flex flex-wrap items-end justify-between gap-4">
+              <div className="max-w-3xl space-y-3">
+                <p className="eyebrow">Admin Dashboard</p>
+                <div className="space-y-2">
+                  <h1 className="page-title">Milk tea operations in one calm workspace.</h1>
+                  <p className="page-description">
+                    Get a quick read on order activity, jump into the kitchen board,
+                    and keep menu configuration consistent.
+                  </p>
+                </div>
               </div>
               <Link
                 href="/menu"
-                className="rounded-lg border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition-colors hover:bg-stone-100"
+                className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
               >
                 Customer Menu
               </Link>
             </div>
-          </CardHeader>
-        </Card>
+
+            <div className="flex flex-wrap items-center gap-2">
+              {filterLinks.map((link) => (
+                <Link key={link.href} href={link.href} className="tab-chip">
+                  {link.label}
+                </Link>
+              ))}
+            </div>
+          </div>
+        </section>
 
         <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {summaryCards.map((card) => (
-            <Card key={card.label} className="border border-stone-200 bg-white py-0">
-              <CardContent className="px-6 py-5">
-                <p className="text-sm text-stone-500">{card.label}</p>
-                <p className={`mt-2 text-3xl font-bold ${card.tone}`}>{card.value}</p>
+            <Card key={card.label} className="overflow-hidden">
+              <CardContent className="pt-6">
+                <div className="space-y-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">{card.label}</p>
+                      <p className={cn("mt-2 text-3xl font-semibold tracking-[-0.03em]", card.tone)}>
+                        {card.value}
+                      </p>
+                    </div>
+                    <span className="mt-1 h-2.5 w-2.5 rounded-full bg-accent/70" />
+                  </div>
+                  <div className="border-t border-border pt-3">
+                    <p className="text-sm text-muted-foreground">{card.detail}</p>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           ))}
         </section>
 
-        <section className="grid gap-4 lg:grid-cols-3">
-          {quickLinks.map((link) => (
-            <Link key={link.href} href={link.href} className="block">
-              <Card className="h-full border border-stone-200 bg-white py-0 transition-colors hover:border-stone-300 hover:bg-stone-50">
-                <CardContent className="px-6 py-5">
-                  <h2 className="text-lg font-semibold text-stone-900">{link.title}</h2>
-                  <p className="mt-2 text-sm leading-6 text-stone-600">
+        <section className="grid gap-4 xl:grid-cols-[1.15fr_1.85fr]">
+          <Card className="h-fit">
+            <CardHeader className="border-b border-border">
+              <div className="space-y-2">
+                <p className="eyebrow">Operations</p>
+                <CardTitle>Quick Access</CardTitle>
+                <CardDescription>
+                  Core admin areas for managing orders, menu items, and store setup.
+                </CardDescription>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-3 pt-5">
+              {quickLinks.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className="soft-panel block p-4 transition hover:border-primary/18 hover:bg-primary-soft/30"
+                >
+                  <h2 className="text-base font-semibold text-foreground">{link.title}</h2>
+                  <p className="mt-1 text-sm leading-6 text-muted-foreground">
                     {link.description}
                   </p>
-                </CardContent>
-              </Card>
-            </Link>
-          ))}
-        </section>
+                </Link>
+              ))}
+            </CardContent>
+          </Card>
 
-        <Card className="border border-stone-200 bg-white py-0">
-          <CardHeader className="border-b border-stone-200 px-6 py-5">
-            <div className="flex items-center justify-between gap-3">
-              <CardTitle className="text-xl font-semibold text-stone-900">
-                Recent Orders
-              </CardTitle>
-              <Link
-                href="/admin/orders"
-                className="text-sm font-medium text-stone-600 hover:text-stone-900"
-              >
-                View all orders
-              </Link>
-            </div>
-          </CardHeader>
-
-          <CardContent className="px-6 py-5">
-            {recentOrders.length === 0 ? (
-              <p className="text-sm text-stone-500">No orders yet.</p>
-            ) : (
-              <div className="space-y-3">
-                {recentOrders.map((order) => (
-                  <Link
-                    key={order.id}
-                    href={`/admin/orders/${order.id}`}
-                    className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 transition-colors hover:bg-stone-100"
-                  >
-                    <div>
-                      <p className="font-medium text-stone-900">{order.customerName}</p>
-                      <p className="mt-1 text-xs text-stone-500">
-                        #{order.displayOrderNumber} · {formatTimestamp(order.createdAt)}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-semibold text-stone-900">
-                        {formatPrice(Number(order.total))}
-                      </p>
-                      <p className="mt-1 text-xs font-medium text-stone-500">
-                        {order.status}
-                      </p>
-                    </div>
-                  </Link>
-                ))}
+          <Card>
+            <CardHeader className="border-b border-border">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="space-y-2">
+                  <p className="eyebrow">Recent Orders</p>
+                  <CardTitle>Fresh activity</CardTitle>
+                  <CardDescription>
+                    The latest customer orders coming through the storefront.
+                  </CardDescription>
+                </div>
+                <Link href="/admin/orders" className="action-link">
+                  View all orders
+                </Link>
               </div>
-            )}
-          </CardContent>
-        </Card>
+            </CardHeader>
+
+            <CardContent className="pt-5">
+              {recentOrders.length === 0 ? (
+                <div className="soft-panel flex min-h-52 items-center justify-center p-6 text-center">
+                  <div className="space-y-2">
+                    <p className="text-base font-semibold text-foreground">No recent orders</p>
+                    <p className="text-sm text-muted-foreground">
+                      When customers place orders, they’ll appear here for quick review.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {recentOrders.map((order) => (
+                    <Link
+                      key={order.id}
+                      href={`/admin/orders/${order.id}`}
+                      className="soft-panel block p-4 transition hover:border-primary/18 hover:bg-primary-soft/30"
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-4">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="font-medium text-foreground">{order.customerName}</p>
+                            <Badge variant={getStatusVariant(order.status)}>{order.status}</Badge>
+                          </div>
+                          <p className="mt-2 text-xs tracking-[0.12em] text-muted-foreground uppercase">
+                            #{order.displayOrderNumber}
+                          </p>
+                          <p className="mt-1 text-sm text-muted-foreground">
+                            {formatTimestamp(order.createdAt)}
+                          </p>
+                        </div>
+
+                        <div className="text-right">
+                          <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
+                            Total
+                          </p>
+                          <p className="mt-1 text-base font-semibold text-foreground">
+                            {formatPrice(Number(order.total))}
+                          </p>
+                        </div>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </section>
       </div>
     </main>
   );

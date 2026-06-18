@@ -1,4 +1,4 @@
-import { PrismaClient } from "@/generated/prisma/client";
+import { PrismaClient } from "@/generated/prisma-stripe/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 
 const globalForPrisma = globalThis as unknown as {
@@ -13,7 +13,7 @@ if (!connectionString) {
 
 const adapter = new PrismaPg({ connectionString });
 
-function hasOrderTaxFields(client: PrismaClient) {
+function hasOrderPaymentFields(client: PrismaClient) {
   const runtimeDataModel = (client as PrismaClient & {
     _runtimeDataModel?: {
       models?: Record<string, { fields?: Array<{ name: string }> }>;
@@ -27,7 +27,14 @@ function hasOrderTaxFields(client: PrismaClient) {
     orderFieldNames.has("tax") &&
     orderFieldNames.has("taxRateApplied") &&
     orderFieldNames.has("displayOrderNumber") &&
-    orderFieldNames.has("displayOrderDateKey")
+    orderFieldNames.has("displayOrderDateKey") &&
+    orderFieldNames.has("paymentStatus") &&
+    orderFieldNames.has("paymentProvider") &&
+    orderFieldNames.has("stripeCheckoutSessionId") &&
+    orderFieldNames.has("stripePaymentIntentId") &&
+    orderFieldNames.has("paymentAmount") &&
+    orderFieldNames.has("paymentCurrency") &&
+    orderFieldNames.has("paidAt")
   );
 }
 
@@ -52,7 +59,7 @@ const hasExpectedDelegates =
   "modifierTemplate" in globalForPrisma.__prisma &&
   "modifierTemplateOption" in globalForPrisma.__prisma &&
   hasModifierTemplateOptionSortOrder(globalForPrisma.__prisma) &&
-  hasOrderTaxFields(globalForPrisma.__prisma);
+  hasOrderPaymentFields(globalForPrisma.__prisma);
 
 function createPrismaClient() {
   return new PrismaClient({ adapter });

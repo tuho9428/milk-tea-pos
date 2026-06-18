@@ -1,40 +1,42 @@
 import Link from "next/link";
+
 import { OrderDetailContent } from "@/app/admin/orders/order-detail-content";
 import { getAdminOrderDetail } from "@/app/admin/orders/order-detail-data";
-
-import {
-  Card,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { buttonVariants } from "@/components/ui/button-variants";
+import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { prisma } from "@/lib/prisma";
+import { cn } from "@/lib/utils";
 import { OrdersBoardClient, type BoardColumnStatus, type BoardOrder } from "./orders-board-client";
 
 const boardColumns: Array<{
   status: BoardColumnStatus;
   title: string;
   tone: string;
+  badgeTone: "new" | "progress" | "ready" | "completed";
 }> = [
   {
     status: "PENDING",
-    title: "Pending",
-    tone: "border-amber-200 bg-amber-50",
+    title: "New",
+    tone: "border-[hsl(34_28%_83%)] bg-[hsl(38_30%_94%/0.72)]",
+    badgeTone: "new",
   },
   {
     status: "MAKING",
-    title: "Making",
-    tone: "border-violet-200 bg-violet-50",
+    title: "In Progress",
+    tone: "border-[hsl(43_32%_80%)] bg-[hsl(42_34%_92%/0.74)]",
+    badgeTone: "progress",
   },
   {
     status: "READY",
     title: "Ready",
-    tone: "border-emerald-200 bg-emerald-50",
+    tone: "border-[hsl(146_20%_82%)] bg-[hsl(144_22%_93%/0.75)]",
+    badgeTone: "ready",
   },
   {
     status: "COMPLETED",
     title: "Completed",
-    tone: "border-stone-200 bg-stone-100",
+    tone: "border-[hsl(118_12%_83%)] bg-[hsl(108_11%_92%/0.72)]",
+    badgeTone: "completed",
   },
 ];
 
@@ -88,6 +90,9 @@ export default async function AdminOrdersBoardPage({
     displayOrderNumber: order.displayOrderNumber,
     customerName: order.customerName,
     status: order.status as BoardColumnStatus,
+    paymentStatus: order.paymentStatus,
+    paymentProvider: order.paymentProvider,
+    paidAt: order.paidAt ? order.paidAt.toISOString() : null,
     total: Number(order.total),
     createdAt: order.createdAt.toISOString(),
     items: order.items.map((item) => ({
@@ -98,54 +103,44 @@ export default async function AdminOrdersBoardPage({
   }));
 
   return (
-    <main className="min-h-screen bg-stone-50 px-6 py-10 text-stone-900">
-      <div className="mx-auto max-w-7xl space-y-6">
-        <Card className="border border-stone-200 bg-white py-0">
-          <CardHeader className="border-b border-stone-200 px-6 py-6">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="text-xs font-semibold tracking-[0.2em] text-stone-500">
-                  ADMIN
-                </p>
-                <CardTitle className="mt-2 text-3xl font-bold text-stone-900">
-                  Orders Board
-                </CardTitle>
-                <CardDescription className="mt-1 text-stone-600">
-                  Active orders grouped by status for quick kitchen workflow updates.
-                </CardDescription>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <Link
-                  href="/admin"
-                  className="rounded-lg border border-stone-300 bg-stone-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-stone-700"
-                >
-                  Admin Dashboard
-                </Link>
-                <Link
-                  href="/admin/orders"
-                  className="rounded-lg border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition-colors hover:bg-stone-100"
-                >
-                  Orders List
-                </Link>
-                <Link
-                  href="/admin/menu"
-                  className="rounded-lg border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition-colors hover:bg-stone-100"
-                >
-                  Manage Menu
-                </Link>
-              </div>
+    <main className="page-shell">
+      <div className="page-wrap-wide space-y-6">
+        <section className="hero-panel px-6 py-7 sm:px-8">
+          <div className="relative z-10 flex flex-wrap items-end justify-between gap-4">
+            <div className="max-w-2xl space-y-3">
+              <p className="eyebrow">Kitchen Workflow</p>
+              <h1 className="page-title">Orders Board</h1>
+              <p className="page-description">
+                Active orders grouped by status for a calmer, clearer kitchen handoff.
+              </p>
             </div>
-          </CardHeader>
-        </Card>
+            <div className="flex flex-wrap gap-2">
+              <Link href="/admin" className={cn(buttonVariants({ size: "sm" }))}>
+                Dashboard
+              </Link>
+              <Link
+                href="/admin/orders"
+                className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+              >
+                Orders List
+              </Link>
+              <Link
+                href="/admin/menu"
+                className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+              >
+                Manage Menu
+              </Link>
+            </div>
+          </div>
+        </section>
 
-        <OrdersBoardClient
-          columns={boardColumns}
-          initialOrders={serializedOrders}
-        />
+        <section className="rounded-[calc(var(--radius)*1.25)] border border-border bg-card/55 p-4 shadow-[0_12px_30px_rgba(31,26,23,0.04)] sm:p-5">
+          <OrdersBoardClient columns={boardColumns} initialOrders={serializedOrders} />
+        </section>
       </div>
 
       {activeOrderId ? (
-        <div className="fixed inset-0 z-50 bg-stone-950/60 px-4 py-6 backdrop-blur-sm">
+        <div className="dialog-backdrop">
           <Link
             href="/admin/orders/board"
             className="absolute inset-0"
@@ -155,11 +150,7 @@ export default async function AdminOrdersBoardPage({
 
           <div className="relative mx-auto max-w-5xl">
             <div className="mb-3 flex justify-end">
-              <Link
-                href="/admin/orders/board"
-                className="rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm font-medium text-stone-700 transition-colors hover:bg-stone-100"
-                scroll={false}
-              >
+              <Link href="/admin/orders/board" className="dialog-close" scroll={false}>
                 Close
               </Link>
             </div>
@@ -167,19 +158,17 @@ export default async function AdminOrdersBoardPage({
             {activeOrder ? (
               <OrderDetailContent order={activeOrder} mode="modal" />
             ) : (
-              <Card className="border border-stone-200 bg-white py-0 shadow-xl">
-                <CardHeader className="border-b border-stone-200 px-6 py-5">
-                  <CardTitle className="text-xl font-semibold text-stone-900">
-                    Order Not Found
-                  </CardTitle>
-                  <CardDescription className="text-stone-600">
+              <Card>
+                <CardHeader className="border-b border-border">
+                  <CardTitle>Order Not Found</CardTitle>
+                  <CardDescription>
                     This order is unavailable or could not be loaded.
                   </CardDescription>
                 </CardHeader>
                 <div className="px-6 py-6">
                   <Link
                     href="/admin/orders/board"
-                    className="inline-flex rounded-lg bg-stone-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-stone-700"
+                    className={cn(buttonVariants({ size: "sm" }))}
                     scroll={false}
                   >
                     Back to Board

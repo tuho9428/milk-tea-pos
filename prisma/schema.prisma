@@ -5,7 +5,7 @@
 
 generator client {
   provider = "prisma-client"
-  output   = "../app/generated/prisma"
+  output   = "../app/generated/prisma-stripe"
 }
 
 datasource db {
@@ -55,7 +55,10 @@ model ModifierTemplate {
   type        ModifierType
   required    Boolean                  @default(false)
   multiSelect Boolean                  @default(false)
-  options     ModifierTemplateOption[]
+  maxSelections Int                    @default(2)
+  defaultOptionId String?
+  defaultOption ModifierTemplateOption? @relation("ModifierTemplateDefaultOption", fields: [defaultOptionId], references: [id], onDelete: SetNull)
+  options     ModifierTemplateOption[] @relation("ModifierTemplateOptions")
   groups      ModifierGroup[]
   menuItems   MenuItemModifierTemplate[]
   createdAt   DateTime                 @default(now())
@@ -68,7 +71,8 @@ model ModifierTemplateOption {
   priceDelta         Decimal          @default(0) @db.Decimal(10, 2)
   sortOrder          Int              @default(0)
   modifierTemplateId String
-  modifierTemplate   ModifierTemplate @relation(fields: [modifierTemplateId], references: [id], onDelete: Cascade)
+  modifierTemplate   ModifierTemplate @relation("ModifierTemplateOptions", fields: [modifierTemplateId], references: [id], onDelete: Cascade)
+  defaultForTemplates ModifierTemplate[] @relation("ModifierTemplateDefaultOption")
 
   @@index([modifierTemplateId, sortOrder])
 }
@@ -112,6 +116,13 @@ model Order {
   customerName        String
   phone               String
   status              OrderStatus @default(PENDING)
+  paymentStatus       PaymentStatus @default(PENDING)
+  paymentProvider     PaymentProvider @default(STRIPE)
+  stripeCheckoutSessionId String?   @unique
+  stripePaymentIntentId String?    @unique
+  paymentAmount       Decimal     @default(0) @db.Decimal(10, 2)
+  paymentCurrency     String      @default("usd")
+  paidAt              DateTime?
   subtotal            Decimal     @db.Decimal(10, 2)
   tax                 Decimal     @db.Decimal(10, 2)
   taxRateApplied      Decimal     @db.Decimal(5, 4)
@@ -150,6 +161,19 @@ enum OrderStatus {
   READY
   COMPLETED
   CANCELED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+  CANCELLED
+  EXPIRED
+}
+
+enum PaymentProvider {
+  STRIPE
 }
 
 enum ModifierType {

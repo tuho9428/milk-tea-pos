@@ -2,13 +2,98 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { ClearCartOnLoad } from "@/app/order/[id]/clear-cart-on-load";
+import { RefreshUntilPaid } from "@/app/order/[id]/refresh-until-paid";
+import { Badge } from "@/components/ui/badge";
+import { buttonVariants } from "@/components/ui/button-variants";
 import { formatPrice, formatTaxRate } from "@/lib/format";
+import { formatPaymentStatusLabel, getPaymentStatusVariant } from "@/lib/payment";
 import { prisma } from "@/lib/prisma";
+import { getStripe } from "@/lib/stripe";
+import { cn } from "@/lib/utils";
 
 type OrderConfirmationPageProps = {
   params: Promise<{ id: string }>;
-  searchParams?: Promise<{ clearCart?: string }>;
+  searchParams?: Promise<{
+    clearCart?: string;
+    payment?: string;
+    session_id?: string;
+    orderId?: string;
+  }>;
 };
+
+export const dynamic = "force-dynamic";
+
+function getSessionPaymentIntentId(session: Awaited<ReturnType<ReturnType<typeof getStripe>["checkout"]["sessions"]["retrieve"]>>) {
+  return typeof session.payment_intent === "string" ? session.payment_intent : null;
+}
+
+function getSessionAmountTotal(session: Awaited<ReturnType<ReturnType<typeof getStripe>["checkout"]["sessions"]["retrieve"]>>) {
+  return typeof session.amount_total === "number" ? session.amount_total / 100 : null;
+}
+
+async function reconcileSuccessfulStripeCheckout(orderId: string, sessionId: string | undefined) {
+  if (!sessionId) {
+    return;
+  }
+
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    select: {
+      id: true,
+      paymentStatus: true,
+      stripeCheckoutSessionId: true,
+    },
+  });
+
+  if (!order || order.paymentStatus === "PAID") {
+    return;
+  }
+
+  const stripe = getStripe();
+  let session: Awaited<ReturnType<typeof stripe.checkout.sessions.retrieve>>;
+
+  try {
+    session = await stripe.checkout.sessions.retrieve(sessionId);
+  } catch (error) {
+    console.log(
+      "[stripe:success-page] checkout session reconciliation failed",
+      error instanceof Error ? error.message : error,
+    );
+    return;
+  }
+
+  const sessionOrderId = session.metadata?.orderId || session.client_reference_id;
+
+  if (
+    session.payment_status !== "paid" ||
+    sessionOrderId !== order.id ||
+    order.stripeCheckoutSessionId !== session.id
+  ) {
+    console.log("[stripe:success-page] checkout session not ready for reconciliation", {
+      orderId: order.id,
+      sessionId: session.id,
+      sessionOrderId,
+      paymentStatus: session.payment_status,
+    });
+    return;
+  }
+
+  await prisma.order.update({
+    where: { id: order.id },
+    data: {
+      paymentStatus: "PAID",
+      stripePaymentIntentId: getSessionPaymentIntentId(session),
+      paymentAmount: getSessionAmountTotal(session) ?? undefined,
+      paymentCurrency: session.currency ?? "usd",
+      paidAt: new Date(),
+    },
+  });
+
+  console.log("[stripe:success-page] order payment reconciled", {
+    orderId: order.id,
+    sessionId: session.id,
+  });
+}
 
 export default async function OrderConfirmationPage({
   params,
@@ -16,6 +101,10 @@ export default async function OrderConfirmationPage({
 }: OrderConfirmationPageProps) {
   const { id } = await params;
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
+
+  if (resolvedSearchParams?.payment === "success") {
+    await reconcileSuccessfulStripeCheckout(id, resolvedSearchParams.session_id);
+  }
 
   const order = await prisma.order.findUnique({
     where: { id },
@@ -37,79 +126,120 @@ export default async function OrderConfirmationPage({
     notFound();
   }
 
-  return (
-    <main className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-amber-50 px-6 py-10">
-      <ClearCartOnLoad shouldClear={resolvedSearchParams?.clearCart === "1"} />
-      <div className="mx-auto max-w-4xl space-y-6">
-        <section className="rounded-2xl border border-emerald-200 bg-white p-7 shadow-sm">
-          <p className="text-sm font-semibold tracking-[0.2em] text-emerald-600">
-            ORDER CONFIRMED
-          </p>
-          <h1 className="mt-3 text-3xl font-bold text-stone-900">
-            Thanks, {order.customerName}
-          </h1>
-          <p className="mt-2 text-stone-600">
-            Your milk tea order has been created and is now waiting in the queue.
-          </p>
+  const paymentNotice = resolvedSearchParams?.payment;
 
-          <dl className="mt-6 grid gap-4 sm:grid-cols-2">
-            <div className="rounded-xl bg-stone-50 p-4">
-              <dt className="text-xs uppercase tracking-wide text-stone-500">Order Number</dt>
-              <dd className="mt-1 text-sm font-semibold text-stone-800">
-                #{order.displayOrderNumber}
-              </dd>
-            </div>
-            <div className="rounded-xl bg-stone-50 p-4">
-              <dt className="text-xs uppercase tracking-wide text-stone-500">Status</dt>
-              <dd className="mt-1 font-semibold text-amber-700">{order.status}</dd>
-            </div>
-            <div className="rounded-xl bg-stone-50 p-4">
-              <dt className="text-xs uppercase tracking-wide text-stone-500">Phone</dt>
-              <dd className="mt-1 text-stone-800">{order.phone}</dd>
-            </div>
-            <div className="rounded-xl bg-stone-50 p-4">
-              <dt className="text-xs uppercase tracking-wide text-stone-500">Placed</dt>
-              <dd className="mt-1 text-stone-800">
-                {new Intl.DateTimeFormat("en-US", {
-                  dateStyle: "medium",
-                  timeStyle: "short",
-                }).format(order.createdAt)}
-              </dd>
-            </div>
-            <div className="rounded-xl bg-stone-50 p-4 sm:col-span-2">
-              <dt className="text-xs uppercase tracking-wide text-stone-500">Tax Rate</dt>
-              <dd className="mt-1 text-stone-800">
-                {formatTaxRate(Number(order.taxRateApplied))}
-              </dd>
-            </div>
-            {order.notes ? (
-              <div className="rounded-xl bg-stone-50 p-4 sm:col-span-2">
-                <dt className="text-xs uppercase tracking-wide text-stone-500">Notes</dt>
-                <dd className="mt-1 text-stone-800">{order.notes}</dd>
+  return (
+    <main className="page-shell">
+      <ClearCartOnLoad shouldClear={resolvedSearchParams?.clearCart === "1"} />
+      <RefreshUntilPaid enabled={resolvedSearchParams?.payment === "success" && order.paymentStatus !== "PAID"} />
+      <div className="page-wrap space-y-6">
+        <section className="hero-panel px-7 py-8">
+          <div className="relative z-10 space-y-6">
+            <div className="space-y-3">
+              <p className="eyebrow">Order Confirmed</p>
+              <div className="space-y-2">
+                <h1 className="page-title">Thanks, {order.customerName}</h1>
+                <p className="page-description">
+                  Your milk tea order has been created and is now waiting in the queue.
+                </p>
               </div>
+            </div>
+
+            {paymentNotice === "success" ? (
+              <p className="status-pill status-success w-fit">
+                Stripe Checkout completed. We are confirming the payment securely with Stripe.
+              </p>
             ) : null}
-          </dl>
+            {paymentNotice === "failed" ? (
+              <p className="status-pill status-danger w-fit">
+                Payment could not start. Please return to checkout and try again.
+              </p>
+            ) : null}
+            {paymentNotice === "cancelled" ? (
+              <p className="status-pill status-warning w-fit">
+                Payment was cancelled. Your pending order is still available.
+              </p>
+            ) : null}
+
+            <dl className="grid gap-4 sm:grid-cols-2">
+              <div className="soft-panel p-4">
+                <dt className="eyebrow">Order Number</dt>
+                <dd className="mt-2 text-sm font-semibold text-foreground">
+                  #{order.displayOrderNumber}
+                </dd>
+              </div>
+              <div className="soft-panel p-4">
+                <dt className="eyebrow">Status</dt>
+                <dd className="mt-2">
+                  <span className="status-pill status-warning">{order.status}</span>
+                </dd>
+              </div>
+              <div className="soft-panel p-4">
+                <dt className="eyebrow">Payment</dt>
+                <dd className="mt-2 flex flex-wrap items-center gap-2">
+                  <Badge variant={getPaymentStatusVariant(order.paymentStatus)}>
+                    {formatPaymentStatusLabel(order.paymentStatus)}
+                  </Badge>
+                  {order.paidAt ? (
+                    <span className="text-xs text-muted-foreground">
+                      Paid {new Intl.DateTimeFormat("en-US", {
+                        dateStyle: "medium",
+                        timeStyle: "short",
+                      }).format(order.paidAt)}
+                    </span>
+                  ) : null}
+                </dd>
+              </div>
+              <div className="soft-panel p-4">
+                <dt className="eyebrow">Phone</dt>
+                <dd className="mt-2 text-sm text-foreground">{order.phone}</dd>
+              </div>
+              <div className="soft-panel p-4">
+                <dt className="eyebrow">Placed</dt>
+                <dd className="mt-2 text-sm text-foreground">
+                  {new Intl.DateTimeFormat("en-US", {
+                    dateStyle: "medium",
+                    timeStyle: "short",
+                  }).format(order.createdAt)}
+                </dd>
+              </div>
+              <div className="soft-panel p-4 sm:col-span-2">
+                <dt className="eyebrow">Tax Rate</dt>
+                <dd className="mt-2 text-sm text-foreground">
+                  {formatTaxRate(Number(order.taxRateApplied))}
+                </dd>
+              </div>
+              {order.notes ? (
+                <div className="soft-panel p-4 sm:col-span-2">
+                  <dt className="eyebrow">Notes</dt>
+                  <dd className="mt-2 text-sm text-foreground">{order.notes}</dd>
+                </div>
+              ) : null}
+            </dl>
+          </div>
         </section>
 
-        <section className="rounded-2xl border border-stone-200 bg-white p-7 shadow-sm">
+        <section className="section-card p-7">
           <div className="flex items-center justify-between gap-3">
-            <h2 className="text-xl font-semibold text-stone-900">Order Summary</h2>
-            <p className="text-sm text-stone-500">{order.items.length} line items</p>
+            <div className="space-y-2">
+              <p className="eyebrow">Summary</p>
+              <h2 className="section-title">Order Summary</h2>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              {order.items.length} line item{order.items.length === 1 ? "" : "s"}
+            </p>
           </div>
 
           <div className="mt-5 space-y-4">
             {order.items.map((item) => (
-              <article
-                key={item.id}
-                className="rounded-xl border border-stone-200 bg-stone-50 p-4"
-              >
+              <article key={item.id} className="soft-panel p-4">
                 <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <h3 className="font-semibold text-stone-900">
+                  <div className="min-w-0 flex-1">
+                    <h3 className="font-semibold text-foreground">
                       {item.quantity} x {item.menuItem.name}
                     </h3>
                     {item.modifiers.length > 0 ? (
-                      <ul className="mt-2 space-y-1 text-sm text-stone-600">
+                      <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
                         {item.modifiers.map((modifier) => (
                           <li key={modifier.id}>
                             {modifier.name}
@@ -120,27 +250,32 @@ export default async function OrderConfirmationPage({
                         ))}
                       </ul>
                     ) : (
-                      <p className="mt-2 text-sm text-stone-500">No modifiers</p>
+                      <p className="mt-2 text-sm text-muted-foreground">No modifiers</p>
                     )}
                   </div>
-                  <p className="font-semibold text-stone-900">
-                    {formatPrice(Number(item.unitPrice) * item.quantity)}
-                  </p>
+                  <div className="text-right">
+                    <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
+                      Line Total
+                    </p>
+                    <p className="mt-1 font-semibold text-foreground">
+                      {formatPrice(Number(item.unitPrice) * item.quantity)}
+                    </p>
+                  </div>
                 </div>
               </article>
             ))}
           </div>
 
-          <dl className="mt-6 space-y-3 border-t border-stone-200 pt-4">
-            <div className="flex justify-between text-sm text-stone-600">
+          <dl className="mt-6 space-y-3 border-t border-border pt-4">
+            <div className="flex justify-between text-sm text-muted-foreground">
               <dt>Subtotal</dt>
               <dd>{formatPrice(Number(order.subtotal))}</dd>
             </div>
-            <div className="flex justify-between text-sm text-stone-600">
+            <div className="flex justify-between text-sm text-muted-foreground">
               <dt>Tax</dt>
               <dd>{formatPrice(Number(order.tax))}</dd>
             </div>
-            <div className="flex justify-between text-base font-semibold text-stone-900">
+            <div className="flex justify-between text-base font-semibold text-foreground">
               <dt>Total</dt>
               <dd>{formatPrice(Number(order.total))}</dd>
             </div>
@@ -148,10 +283,7 @@ export default async function OrderConfirmationPage({
         </section>
 
         <div className="flex flex-wrap gap-3">
-          <Link
-            href="/menu"
-            className="rounded-lg bg-stone-900 px-5 py-3 text-sm font-semibold text-white hover:bg-stone-700"
-          >
+          <Link href="/menu" className={cn(buttonVariants({ size: "lg" }))}>
             Order More Drinks
           </Link>
         </div>

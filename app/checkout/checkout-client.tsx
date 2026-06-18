@@ -1,10 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useSyncExternalStore } from "react";
-import { useRouter } from "next/navigation";
+import { useActionState, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 
-import { createOrderAction } from "@/app/checkout/actions";
+import {
+  createOrderAction,
+} from "@/app/checkout/actions";
+import {
+  checkoutActionInitialState,
+} from "@/app/checkout/checkout-action-state";
+import { buttonVariants } from "@/components/ui/button-variants";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -15,10 +21,11 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { calculateCartSubtotal } from "@/lib/cart";
+import { calculateCartSubtotal, type CartItem } from "@/lib/cart";
 import { getStoredCart, subscribeToStoredCart } from "@/lib/cart-storage";
 import { formatPrice } from "@/lib/format";
 import { calculateOrderPricing } from "@/lib/tax";
+import { cn } from "@/lib/utils";
 
 type CheckoutClientProps = {
   taxRate: number;
@@ -26,12 +33,20 @@ type CheckoutClientProps = {
 
 export function CheckoutClient({ taxRate }: CheckoutClientProps) {
   const router = useRouter();
-  const cartItems = useSyncExternalStore(subscribeToStoredCart, getStoredCart, () => []);
+  const searchParams = useSearchParams();
+  const [formState, formAction, isPending] = useActionState(
+    createOrderAction,
+    checkoutActionInitialState,
+  );
+  const resumeOrderId = formState.orderId ?? searchParams.get("orderId");
+  const [cartItems, setCartItems] = useState<CartItem[]>(() => getStoredCart());
 
   const pricing = useMemo(
     () => calculateOrderPricing(calculateCartSubtotal(cartItems), taxRate),
     [cartItems, taxRate],
   );
+
+  useEffect(() => subscribeToStoredCart(() => setCartItems(getStoredCart())), []);
 
   useEffect(() => {
     const handlePageShow = () => {
@@ -45,58 +60,80 @@ export function CheckoutClient({ taxRate }: CheckoutClientProps) {
     };
   }, [router]);
 
-  return (
-    <form action={createOrderAction} className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-3">
-      <input type="hidden" name="cartPayload" value={JSON.stringify(cartItems)} />
+  useEffect(() => {
+    if (formState.status === "success" && formState.redirectUrl) {
+      window.location.assign(formState.redirectUrl);
+    }
+  }, [formState.orderId, formState.redirectUrl, formState.status]);
 
-      <Card className="border-stone-200 bg-white py-0 lg:col-span-2">
-        <CardHeader className="gap-2 border-b border-stone-200 px-6 py-6">
-          <CardTitle className="text-3xl font-bold text-stone-900">Checkout</CardTitle>
-          <CardDescription className="text-stone-600">
-            Enter pickup details and place this cart as a real order.
-          </CardDescription>
+  const paymentNotice = searchParams.get("payment");
+  const resumePayment = Boolean(resumeOrderId);
+
+  return (
+    <form action={formAction} className="page-wrap-wide grid gap-6 lg:grid-cols-[1.45fr_0.78fr]">
+      <input type="hidden" name="cartPayload" value={JSON.stringify(cartItems)} />
+      {resumePayment ? <input type="hidden" name="existingOrderId" value={resumeOrderId ?? ""} /> : null}
+
+      <Card className="hero-panel lg:col-span-1">
+        <CardHeader className="relative z-10 gap-3 border-b border-border">
+          <p className="eyebrow">Pickup Details</p>
+          <div className="space-y-2">
+            <CardTitle className="page-title text-[2.2rem]">Checkout</CardTitle>
+            <CardDescription>
+              Enter customer details and place this cart as a real order. Payment is securely handled by Stripe Checkout.
+            </CardDescription>
+          </div>
+          {paymentNotice === "cancelled" ? (
+            <p className="status-pill status-warning w-fit">
+              Payment cancelled. Your pending order can be resumed below.
+            </p>
+          ) : null}
+          {paymentNotice === "failed" ? (
+            <p className="status-pill status-danger w-fit">
+              Stripe could not start. You can retry the same order below.
+            </p>
+          ) : null}
+          {formState.status === "error" ? (
+            <p className="status-pill status-danger w-fit">{formState.message}</p>
+          ) : null}
         </CardHeader>
 
-        <CardContent className="px-6 py-6">
+        <CardContent className="relative z-10 pt-6">
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="flex flex-col gap-2 text-sm">
-              <span className="font-medium text-stone-700">Customer Name</span>
-              <Input
-                name="customerName"
-                required
-                placeholder="John Doe"
-                className="h-11 border-stone-300 bg-white text-stone-900 placeholder:text-stone-400"
-              />
+              <span className="font-medium text-foreground">Customer Name</span>
+              <Input name="customerName" required placeholder="John Doe" className="h-12" />
             </label>
             <label className="flex flex-col gap-2 text-sm">
-              <span className="font-medium text-stone-700">Phone Number</span>
-              <Input
-                name="phone"
-                required
-                placeholder="(555) 123-4567"
-                className="h-11 border-stone-300 bg-white text-stone-900 placeholder:text-stone-400"
-              />
+              <span className="font-medium text-foreground">Phone Number</span>
+              <Input name="phone" required placeholder="(555) 123-4567" className="h-12" />
             </label>
             <label className="flex flex-col gap-2 text-sm sm:col-span-2">
-              <span className="font-medium text-stone-700">Pickup Notes</span>
+              <span className="font-medium text-foreground">Pickup Notes</span>
               <Textarea
                 name="notes"
                 placeholder="Less sugar for all drinks, please."
-                className="min-h-32 border-stone-300 bg-white text-stone-900 placeholder:text-stone-400"
+                className="min-h-36"
               />
             </label>
           </div>
         </CardContent>
       </Card>
 
-      <Card className="h-fit border-stone-200 bg-white py-0">
-        <CardHeader className="border-b border-stone-200 px-6 py-5">
-          <CardTitle className="text-lg font-semibold text-stone-900">Order Summary</CardTitle>
+      <Card className="section-card h-fit">
+        <CardHeader className="border-b border-border">
+          <div className="space-y-2">
+            <p className="eyebrow">Summary</p>
+            <CardTitle>Order Summary</CardTitle>
+            <CardDescription>
+              {cartItems.length} line item{cartItems.length === 1 ? "" : "s"}
+            </CardDescription>
+          </div>
         </CardHeader>
 
-        <CardContent className="px-6 py-5">
+        <CardContent className="pt-5">
           {cartItems.length === 0 ? (
-            <p className="text-sm text-stone-600">Your cart is empty.</p>
+            <p className="text-sm text-muted-foreground">Your cart is empty.</p>
           ) : (
             <ul className="space-y-4">
               {cartItems.map((item, index) => {
@@ -106,66 +143,69 @@ export function CheckoutClient({ taxRate }: CheckoutClientProps) {
                 );
 
                 return (
-                  <li key={`${item.menuItemId}-${index}`} className="text-sm">
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="font-medium text-stone-700">
-                        {item.quantity} x {item.name}
-                      </span>
-                      <span className="font-medium text-stone-900">
-                        {formatPrice(item.quantity * (item.basePrice + modifierTotal))}
-                      </span>
+                  <li key={`${item.menuItemId}-${index}`} className="soft-panel p-4 text-sm">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-foreground">
+                          {item.quantity} x {item.name}
+                        </p>
+                        {item.selectedModifiers.length > 0 ? (
+                          <ul className="mt-2 space-y-1 text-muted-foreground">
+                            {item.selectedModifiers.map((modifier) => (
+                              <li key={`${item.menuItemId}-${index}-${modifier.name}`}>
+                                {modifier.name}
+                                {modifier.priceDelta > 0
+                                  ? ` (+${formatPrice(modifier.priceDelta)})`
+                                  : ""}
+                              </li>
+                            ))}
+                          </ul>
+                        ) : null}
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
+                          Line Total
+                        </p>
+                        <p className="mt-1 font-medium text-foreground">
+                          {formatPrice(item.quantity * (item.basePrice + modifierTotal))}
+                        </p>
+                      </div>
                     </div>
-                    {item.selectedModifiers.length > 0 ? (
-                      <ul className="mt-2 space-y-1 pl-3 text-stone-500">
-                        {item.selectedModifiers.map((modifier) => (
-                          <li key={`${item.menuItemId}-${index}-${modifier.name}`}>
-                            {modifier.name}
-                            {modifier.priceDelta > 0
-                              ? ` (+${formatPrice(modifier.priceDelta)})`
-                              : ""}
-                          </li>
-                        ))}
-                      </ul>
-                    ) : null}
                   </li>
                 );
               })}
             </ul>
           )}
 
-          <dl className="mt-5 space-y-2 border-t border-stone-200 pt-4 text-sm">
-            <div className="flex justify-between text-stone-600">
+          <dl className="mt-5 space-y-2 border-t border-border pt-4 text-sm">
+            <div className="flex justify-between text-muted-foreground">
               <dt>Subtotal</dt>
               <dd>{formatPrice(pricing.subtotal)}</dd>
             </div>
-            <div className="flex justify-between text-stone-600">
+            <div className="flex justify-between text-muted-foreground">
               <dt>Tax</dt>
               <dd>{formatPrice(pricing.tax)}</dd>
             </div>
-            <div className="flex justify-between text-base font-semibold text-stone-900">
+            <div className="flex justify-between border-t border-border pt-3 text-base font-semibold text-foreground">
               <dt>Total</dt>
               <dd>{formatPrice(pricing.total)}</dd>
             </div>
           </dl>
 
-          <div className="mt-5">
-            <div className="flex flex-wrap gap-3">
-              <Button
-                type="submit"
-                disabled={cartItems.length === 0}
-                size="lg"
-                className="flex-1 h-11 bg-stone-900 px-5 text-white hover:bg-stone-700"
-              >
-                Place Order
-              </Button>
-
-              <Link
-                href={cartItems.length === 0 ? "/menu" : "/cart"}
-                className="inline-flex h-11 items-center justify-center rounded-lg border border-stone-300 bg-white px-5 text-sm font-medium text-stone-900 transition-colors hover:bg-stone-100"
-              >
-                {cartItems.length === 0 ? "Go to Menu" : "Back to Cart"}
-              </Link>
-            </div>
+          <div className="mt-5 flex flex-wrap gap-3">
+            <Button type="submit" disabled={cartItems.length === 0 || isPending} size="lg" className="flex-1">
+              {isPending
+                ? "Starting Stripe..."
+                : resumePayment
+                  ? "Continue Payment"
+                  : "Place Order"}
+            </Button>
+            <Link
+              href={cartItems.length === 0 ? "/menu" : "/cart"}
+              className={cn(buttonVariants({ variant: "outline", size: "lg" }))}
+            >
+              {cartItems.length === 0 ? "Go to Menu" : "Back to Cart"}
+            </Link>
           </div>
         </CardContent>
       </Card>

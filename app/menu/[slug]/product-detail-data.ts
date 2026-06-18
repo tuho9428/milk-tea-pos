@@ -37,6 +37,8 @@ export async function getProductDetailBySlug(slug: string) {
       name: link.modifierTemplate.name,
       required: link.modifierTemplate.required,
       multiSelect: link.modifierTemplate.multiSelect,
+      maxSelections: link.modifierTemplate.maxSelections,
+      defaultOptionId: link.modifierTemplate.defaultOptionId,
       options: link.modifierTemplate.options.map((option) => ({
         id: option.id,
         name: option.name,
