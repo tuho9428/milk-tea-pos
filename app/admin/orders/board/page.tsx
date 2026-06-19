@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { OrderDetailContent } from "@/app/admin/orders/order-detail-content";
 import { getAdminOrderDetail } from "@/app/admin/orders/order-detail-data";
+import { OrderModalShell } from "@/app/admin/orders/order-modal-shell";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { prisma } from "@/lib/prisma";
@@ -140,44 +141,29 @@ export default async function AdminOrdersBoardPage({
       </div>
 
       {activeOrderId ? (
-        <div className="dialog-backdrop">
-          <Link
-            href="/admin/orders/board"
-            className="absolute inset-0"
-            aria-label="Close order details"
-            scroll={false}
-          />
-
-          <div className="relative mx-auto max-w-5xl">
-            <div className="mb-3 flex justify-end">
-              <Link href="/admin/orders/board" className="dialog-close" scroll={false}>
-                Close
-              </Link>
-            </div>
-
-            {activeOrder ? (
-              <OrderDetailContent order={activeOrder} mode="modal" />
-            ) : (
-              <Card>
-                <CardHeader className="border-b border-border">
-                  <CardTitle>Order Not Found</CardTitle>
-                  <CardDescription>
-                    This order is unavailable or could not be loaded.
-                  </CardDescription>
-                </CardHeader>
-                <div className="px-6 py-6">
-                  <Link
-                    href="/admin/orders/board"
-                    className={cn(buttonVariants({ size: "sm" }))}
-                    scroll={false}
-                  >
-                    Back to Board
-                  </Link>
-                </div>
-              </Card>
-            )}
-          </div>
-        </div>
+        <OrderModalShell closeHref="/admin/orders/board">
+          {activeOrder ? (
+            <OrderDetailContent order={activeOrder} mode="modal" />
+          ) : (
+            <Card>
+              <CardHeader className="border-b border-border">
+                <CardTitle>Order Not Found</CardTitle>
+                <CardDescription>
+                  This order is unavailable or could not be loaded.
+                </CardDescription>
+              </CardHeader>
+              <div className="px-6 py-6">
+                <Link
+                  href="/admin/orders/board"
+                  className={cn(buttonVariants({ size: "sm" }))}
+                  scroll={false}
+                >
+                  Back to Board
+                </Link>
+              </div>
+            </Card>
+          )}
+        </OrderModalShell>
       ) : null}
     </main>
   );
