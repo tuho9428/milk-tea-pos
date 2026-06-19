@@ -220,7 +220,12 @@ export async function updateModifierTemplateAction(
   });
 
   if (!template) {
-    return;
+    return {
+      ...createModifierTemplateFormState(
+        "error",
+        "We couldn't find that modifier template.",
+      ),
+    };
   }
 
   const resolvedDefaultOptionId = required
