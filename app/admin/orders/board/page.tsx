@@ -41,6 +41,9 @@ const boardColumns: Array<{
   },
 ];
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 type AdminOrdersBoardPageProps = {
   searchParams?: Promise<{
     order?: string;

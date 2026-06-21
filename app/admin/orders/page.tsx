@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { HardNavigationButton } from "@/app/admin/orders/hard-navigation-button";
 import { OrderDetailContent } from "@/app/admin/orders/order-detail-content";
 import { getAdminOrderDetail } from "@/app/admin/orders/order-detail-data";
 import { OrderModalShell } from "@/app/admin/orders/order-modal-shell";
@@ -20,6 +21,9 @@ const statusVariants = {
   COMPLETED: "default",
   CANCELED: "destructive",
 } as const;
+
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 function formatStatusLabel(status: keyof typeof statusVariants) {
   return status.charAt(0) + status.slice(1).toLowerCase();
@@ -88,12 +92,12 @@ export default async function AdminOrdersPage({
               <Link href="/admin" className={cn(buttonVariants({ size: "sm" }))}>
                 Dashboard
               </Link>
-              <Link
+              <HardNavigationButton
                 href="/admin/orders/board"
                 className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
               >
                 Orders Board
-              </Link>
+              </HardNavigationButton>
               <Link
                 href="/admin/menu"
                 className={cn(buttonVariants({ variant: "outline", size: "sm" }))}

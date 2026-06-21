@@ -1,22 +1,13 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-
 type OrderModalShellProps = {
   closeHref: string;
   children: React.ReactNode;
 };
 
 export function OrderModalShell({ closeHref, children }: OrderModalShellProps) {
-  const router = useRouter();
-
   function closeModal() {
-    if (window.history.length > 1) {
-      router.back();
-      return;
-    }
-
-    router.replace(closeHref, { scroll: false });
+    window.location.assign(closeHref);
   }
 
   return (

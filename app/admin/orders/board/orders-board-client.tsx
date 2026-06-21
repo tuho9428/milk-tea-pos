@@ -12,11 +12,11 @@ import {
   useSensors,
   type DragEndEvent,
 } from "@dnd-kit/core";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useSyncExternalStore, useTransition } from "react";
 
 import { updateOrderStatusAction } from "@/app/admin/orders/actions";
+import { HardNavigationButton } from "@/app/admin/orders/hard-navigation-button";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { Card, CardContent } from "@/components/ui/card";
@@ -547,16 +547,15 @@ function BoardCardContent({
               ) : null}
 
               <div className="grid grid-cols-2 gap-2">
-                <Link
+                <HardNavigationButton
                   href={`/admin/orders/board?order=${order.id}`}
                   className={cn(
                     buttonVariants({ variant: "outline", size: "sm" }),
                     "w-full justify-center border-border/90 bg-card text-muted-foreground shadow-none hover:bg-secondary/60 hover:text-foreground",
                   )}
-                  scroll={false}
                 >
                   View
-                </Link>
+                </HardNavigationButton>
 
                 {cancelAction ? (
                   <button
