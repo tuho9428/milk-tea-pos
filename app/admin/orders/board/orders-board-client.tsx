@@ -12,17 +12,19 @@ import {
   useSensors,
   type DragEndEvent,
 } from "@dnd-kit/core";
-import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState, useSyncExternalStore, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, useTransition } from "react";
+import { toast } from "sonner";
 
 import { updateOrderStatusAction } from "@/app/admin/orders/actions";
 import { HardNavigationButton } from "@/app/admin/orders/hard-navigation-button";
+import { fetchRealtimeOrder } from "@/app/admin/orders/realtime-order-client";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatPrice } from "@/lib/format";
 import { formatPaymentStatusLabel, getPaymentStatusVariant, type PaymentStatus } from "@/lib/payment";
 import { cn } from "@/lib/utils";
+import { useRealtimeOrders, type RealtimeOrderEvent, type RealtimeOrderRow } from "@/hooks/use-realtime-orders";
 
 export type BoardColumnStatus = "PENDING" | "MAKING" | "READY" | "COMPLETED";
 
@@ -151,13 +153,58 @@ function getCancelTriggerClass() {
   );
 }
 
+function isBoardColumnStatus(status: string): status is BoardColumnStatus {
+  return status === "PENDING" || status === "MAKING" || status === "READY" || status === "COMPLETED";
+}
+
+function sortNewestFirst(orders: BoardOrder[]) {
+  return [...orders].sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+  );
+}
+
+function shouldShowOnBoard(order: BoardOrder | null): order is BoardOrder {
+  return Boolean(order && order.paymentStatus === "PAID" && isBoardColumnStatus(order.status));
+}
+
+function playNewOrderSound() {
+  const audio = new Audio("/sounds/new-order.mp3");
+
+  audio.play().catch(() => {
+    const AudioContextClass =
+      window.AudioContext ||
+      (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+
+    if (!AudioContextClass) {
+      return;
+    }
+
+    const audioContext = new AudioContextClass();
+    const oscillator = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+
+    oscillator.type = "sine";
+    oscillator.frequency.value = 880;
+    gain.gain.setValueAtTime(0.0001, audioContext.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.08, audioContext.currentTime + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, audioContext.currentTime + 0.35);
+
+    oscillator.connect(gain);
+    gain.connect(audioContext.destination);
+    oscillator.start();
+    oscillator.stop(audioContext.currentTime + 0.36);
+  });
+}
+
 export function OrdersBoardClient({
   columns,
   initialOrders,
 }: OrdersBoardClientProps) {
-  const router = useRouter();
+  const [orders, setOrders] = useState(() => sortNewestFirst(initialOrders));
+  const ordersRef = useRef(orders);
   const [draggedOrderId, setDraggedOrderId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const notifiedOrderIds = useRef(new Set<string>());
   const isMounted = useSyncExternalStore(
     subscribeToHydration,
     getClientSnapshot,
@@ -176,28 +223,95 @@ export function OrdersBoardClient({
       },
     }),
   );
+  const columnStatuses = useMemo(() => new Set(columns.map((column) => column.status)), [columns]);
+
+  useEffect(() => {
+    setOrders(sortNewestFirst(initialOrders));
+  }, [initialOrders]);
+
+  useEffect(() => {
+    ordersRef.current = orders;
+  }, [orders]);
+
+  const notifyNewPaidOrder = useCallback((order: RealtimeOrderRow | BoardOrder) => {
+    if (notifiedOrderIds.current.has(order.id)) {
+      return;
+    }
+
+    notifiedOrderIds.current.add(order.id);
+    toast("New Order Received", {
+      description: `#${order.displayOrderNumber ?? "New"} - ${order.customerName ?? "Guest"}`,
+    });
+    playNewOrderSound();
+  }, []);
+
+  const handleRealtimeOrder = useCallback(
+    async (event: RealtimeOrderEvent) => {
+      const existingOrderWasPaid = ordersRef.current.some(
+        (order) => order.id === event.order.id && order.paymentStatus === "PAID",
+      );
+      const shouldNotify =
+        event.order.paymentStatus === "PAID" &&
+        columnStatuses.has(event.order.status as BoardColumnStatus) &&
+        (event.type === "INSERT" || !existingOrderWasPaid);
+
+      if (shouldNotify) {
+        notifyNewPaidOrder(event.order);
+      }
+
+      const payload = await fetchRealtimeOrder(event.order.id);
+
+      setOrders((current) => {
+        if (!shouldShowOnBoard(payload.boardOrder)) {
+          return current.filter((order) => order.id !== event.order.id);
+        }
+
+        const boardOrder = payload.boardOrder;
+        const nextOrders = current.some((order) => order.id === boardOrder.id)
+          ? current.map((order) => (order.id === boardOrder.id ? boardOrder : order))
+          : [boardOrder, ...current];
+
+        return sortNewestFirst(nextOrders);
+      });
+    },
+    [columnStatuses, notifyNewPaidOrder],
+  );
+
+  useRealtimeOrders({
+    onOrderChange: handleRealtimeOrder,
+  });
 
   const ordersByStatus = useMemo(
     () =>
       Object.fromEntries(
         columns.map((column) => [
           column.status,
-          initialOrders.filter((order) => order.status === column.status),
+          orders.filter((order) => order.status === column.status),
         ]),
       ) as Record<BoardColumnStatus, BoardOrder[]>,
-    [columns, initialOrders],
+    [columns, orders],
   );
   const activeOrder =
     draggedOrderId === null
       ? null
-      : initialOrders.find((order) => order.id === draggedOrderId) ?? null;
+      : orders.find((order) => order.id === draggedOrderId) ?? null;
 
   async function updateStatus(orderId: string, status: string) {
     const formData = new FormData();
     formData.set("orderId", orderId);
     formData.set("status", status);
     await updateOrderStatusAction(formData);
-    router.refresh();
+    setOrders((current) => {
+      if (!isBoardColumnStatus(status)) {
+        return current.filter((order) => order.id !== orderId);
+      }
+
+      return sortNewestFirst(
+        current.map((order) =>
+          order.id === orderId ? { ...order, status } : order,
+        ),
+      );
+    });
   }
 
   function handleDragEnd(event: DragEndEvent) {
@@ -230,7 +344,13 @@ export function OrdersBoardClient({
       });
 
       if (response.ok) {
-        router.refresh();
+        setOrders((current) =>
+          sortNewestFirst(
+            current.map((order) =>
+              order.id === orderId ? { ...order, status: targetStatus } : order,
+            ),
+          ),
+        );
       }
     });
   }
