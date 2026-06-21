@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
-import { ModifierType, OrderStatus, PrismaClient } from "../app/generated/prisma/client";
+import { ModifierType, OrderStatus, PrismaClient } from "../app/generated/prisma-stripe/client";
 import { calculateOrderPricing } from "../lib/tax";
 
 const connectionString = process.env.DATABASE_URL;
