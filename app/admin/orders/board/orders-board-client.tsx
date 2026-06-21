@@ -21,6 +21,7 @@ import { fetchBoardOrdersSnapshot, fetchRealtimeOrder } from "@/app/admin/orders
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { Card, CardContent } from "@/components/ui/card";
+import { playNewOrderSound } from "@/lib/audio/play-new-order-sound";
 import { formatPrice } from "@/lib/format";
 import { formatPaymentStatusLabel, getPaymentStatusVariant, type PaymentStatus } from "@/lib/payment";
 import { cn } from "@/lib/utils";
@@ -167,35 +168,6 @@ function shouldShowOnBoard(order: BoardOrder | null): order is BoardOrder {
   return Boolean(order && order.paymentStatus === "PAID" && isBoardColumnStatus(order.status));
 }
 
-function playNewOrderSound() {
-  const audio = new Audio("/sounds/new-order.mp3");
-
-  audio.play().catch(() => {
-    const AudioContextClass =
-      window.AudioContext ||
-      (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-
-    if (!AudioContextClass) {
-      return;
-    }
-
-    const audioContext = new AudioContextClass();
-    const oscillator = audioContext.createOscillator();
-    const gain = audioContext.createGain();
-
-    oscillator.type = "sine";
-    oscillator.frequency.value = 880;
-    gain.gain.setValueAtTime(0.0001, audioContext.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.08, audioContext.currentTime + 0.02);
-    gain.gain.exponentialRampToValueAtTime(0.0001, audioContext.currentTime + 0.35);
-
-    oscillator.connect(gain);
-    gain.connect(audioContext.destination);
-    oscillator.start();
-    oscillator.stop(audioContext.currentTime + 0.36);
-  });
-}
-
 export function OrdersBoardClient({
   columns,
   initialOrders,
@@ -204,7 +176,7 @@ export function OrdersBoardClient({
   const ordersRef = useRef(orders);
   const [draggedOrderId, setDraggedOrderId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-  const notifiedOrderIds = useRef(new Set<string>());
+  const notifiedOrderIds = useRef(new Set(initialOrders.map((order) => order.id)));
   const isMounted = useSyncExternalStore(
     subscribeToHydration,
     getClientSnapshot,
@@ -226,10 +198,6 @@ export function OrdersBoardClient({
   const columnStatuses = useMemo(() => new Set(columns.map((column) => column.status)), [columns]);
 
   useEffect(() => {
-    setOrders(sortNewestFirst(initialOrders));
-  }, [initialOrders]);
-
-  useEffect(() => {
     ordersRef.current = orders;
   }, [orders]);
 
@@ -240,7 +208,7 @@ export function OrdersBoardClient({
 
     notifiedOrderIds.current.add(order.id);
     toast("New Order Received", {
-      description: `#${order.displayOrderNumber ?? "New"} - ${order.customerName ?? "Guest"}`,
+      description: `Order #${order.displayOrderNumber ?? "New"}`,
     });
     playNewOrderSound();
   }, []);
