@@ -145,6 +145,7 @@ pnpm start
 - `pnpm build` generates Prisma client output and creates a production build
 - `pnpm start` runs the production server
 - `pnpm lint` runs ESLint
+- `pnpm deploy:prod` runs `npx vercel deploy --prod`
 - `pnpm db:seed` inserts sample menu and order data
 - `pnpm db:seed` inserts sample menu and order data
 - Stripe webhook events are confirmed through `/api/webhooks/stripe` during checkout
