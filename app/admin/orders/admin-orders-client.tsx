@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
-import { fetchRealtimeOrder } from "@/app/admin/orders/realtime-order-client";
+import { fetchAdminOrdersSnapshot, fetchRealtimeOrder } from "@/app/admin/orders/realtime-order-client";
 import type { AdminOrderListItem, AdminOrderStatus } from "@/app/admin/orders/order-serializers";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button-variants";
@@ -70,6 +70,29 @@ export function AdminOrdersClient({ initialOrders }: AdminOrdersClientProps) {
   useRealtimeOrders({
     onOrderChange: handleRealtimeOrder,
   });
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function refreshOrdersSnapshot() {
+      try {
+        const payload = await fetchAdminOrdersSnapshot();
+
+        if (isMounted) {
+          setOrders(sortNewestFirst(payload.orders));
+        }
+      } catch {
+        // Keep the current local state if a background snapshot request fails.
+      }
+    }
+
+    const intervalId = window.setInterval(refreshOrdersSnapshot, 5000);
+
+    return () => {
+      isMounted = false;
+      window.clearInterval(intervalId);
+    };
+  }, []);
 
   if (orders.length === 0) {
     return (

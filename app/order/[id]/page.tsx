@@ -8,6 +8,7 @@ import { buttonVariants } from "@/components/ui/button-variants";
 import { formatPrice, formatTaxRate } from "@/lib/format";
 import { formatPaymentStatusLabel, getPaymentStatusVariant } from "@/lib/payment";
 import { prisma } from "@/lib/prisma";
+import { getStripe } from "@/lib/stripe";
 import { cn } from "@/lib/utils";
 
 type OrderConfirmationPageProps = {
@@ -15,11 +16,84 @@ type OrderConfirmationPageProps = {
   searchParams?: Promise<{
     clearCart?: string;
     payment?: string;
+    session_id?: string;
     orderId?: string;
   }>;
 };
 
 export const dynamic = "force-dynamic";
+
+function getSessionPaymentIntentId(session: Awaited<ReturnType<ReturnType<typeof getStripe>["checkout"]["sessions"]["retrieve"]>>) {
+  return typeof session.payment_intent === "string" ? session.payment_intent : null;
+}
+
+function getSessionAmountTotal(session: Awaited<ReturnType<ReturnType<typeof getStripe>["checkout"]["sessions"]["retrieve"]>>) {
+  return typeof session.amount_total === "number" ? session.amount_total / 100 : null;
+}
+
+async function reconcileSuccessfulStripeCheckout(orderId: string, sessionId: string | undefined) {
+  if (!sessionId) {
+    return;
+  }
+
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    select: {
+      id: true,
+      paymentStatus: true,
+      stripeCheckoutSessionId: true,
+    },
+  });
+
+  if (!order || order.paymentStatus === "PAID") {
+    return;
+  }
+
+  const stripe = getStripe();
+  let session: Awaited<ReturnType<typeof stripe.checkout.sessions.retrieve>>;
+
+  try {
+    session = await stripe.checkout.sessions.retrieve(sessionId);
+  } catch (error) {
+    console.log(
+      "[stripe:success-page] checkout session reconciliation failed",
+      error instanceof Error ? error.message : error,
+    );
+    return;
+  }
+
+  const sessionOrderId = session.metadata?.orderId || session.client_reference_id;
+
+  if (
+    session.payment_status !== "paid" ||
+    sessionOrderId !== order.id ||
+    order.stripeCheckoutSessionId !== session.id
+  ) {
+    console.log("[stripe:success-page] checkout session not ready for reconciliation", {
+      orderId: order.id,
+      sessionId: session.id,
+      sessionOrderId,
+      paymentStatus: session.payment_status,
+    });
+    return;
+  }
+
+  await prisma.order.update({
+    where: { id: order.id },
+    data: {
+      paymentStatus: "PAID",
+      stripePaymentIntentId: getSessionPaymentIntentId(session),
+      paymentAmount: getSessionAmountTotal(session) ?? undefined,
+      paymentCurrency: session.currency ?? "usd",
+      paidAt: new Date(),
+    },
+  });
+
+  console.log("[stripe:success-page] order payment reconciled", {
+    orderId: order.id,
+    sessionId: session.id,
+  });
+}
 
 export default async function OrderConfirmationPage({
   params,
@@ -27,6 +101,10 @@ export default async function OrderConfirmationPage({
 }: OrderConfirmationPageProps) {
   const { id } = await params;
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
+
+  if (resolvedSearchParams?.payment === "success") {
+    await reconcileSuccessfulStripeCheckout(id, resolvedSearchParams.session_id);
+  }
 
   const order = await prisma.order.findUnique({
     where: { id },
@@ -69,7 +147,7 @@ export default async function OrderConfirmationPage({
 
             {paymentNotice === "success" ? (
               <p className="status-pill status-success w-fit">
-                Stripe Checkout completed. Waiting for webhook confirmation.
+                Stripe Checkout completed. We are confirming the payment securely with Stripe.
               </p>
             ) : null}
             {paymentNotice === "failed" ? (

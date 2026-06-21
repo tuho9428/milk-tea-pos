@@ -17,7 +17,7 @@ import { toast } from "sonner";
 
 import { updateOrderStatusAction } from "@/app/admin/orders/actions";
 import { HardNavigationButton } from "@/app/admin/orders/hard-navigation-button";
-import { fetchRealtimeOrder } from "@/app/admin/orders/realtime-order-client";
+import { fetchBoardOrdersSnapshot, fetchRealtimeOrder } from "@/app/admin/orders/realtime-order-client";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { Card, CardContent } from "@/components/ui/card";
@@ -281,6 +281,38 @@ export function OrdersBoardClient({
     onOrderChange: handleRealtimeOrder,
   });
 
+  useEffect(() => {
+    let isMounted = true;
+
+    async function refreshBoardSnapshot() {
+      try {
+        const payload = await fetchBoardOrdersSnapshot();
+
+        if (!isMounted) {
+          return;
+        }
+
+        const currentIds = new Set(ordersRef.current.map((order) => order.id));
+        for (const order of payload.orders) {
+          if (!currentIds.has(order.id)) {
+            notifyNewPaidOrder(order);
+          }
+        }
+
+        setOrders(sortNewestFirst(payload.orders));
+      } catch {
+        // Keep the current board state if a background snapshot request fails.
+      }
+    }
+
+    const intervalId = window.setInterval(refreshBoardSnapshot, 3000);
+
+    return () => {
+      isMounted = false;
+      window.clearInterval(intervalId);
+    };
+  }, [notifyNewPaidOrder]);
+
   const ordersByStatus = useMemo(
     () =>
       Object.fromEntries(
@@ -325,7 +357,7 @@ export function OrdersBoardClient({
     }
 
     const targetStatus = overId as BoardColumnStatus;
-    const draggedOrder = initialOrders.find((order) => order.id === orderId);
+    const draggedOrder = orders.find((order) => order.id === orderId);
 
     if (!draggedOrder || draggedOrder.status === targetStatus) {
       return;
