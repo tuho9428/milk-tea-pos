@@ -6,6 +6,8 @@ import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
 import type { PaymentStatus } from "@/lib/payment";
 
+const defaultRealtimeEventTypes = ["INSERT", "UPDATE"] as const;
+
 export type RealtimeOrderStatus =
   | "PENDING"
   | "PAID"
@@ -32,7 +34,9 @@ export type RealtimeOrderEvent = {
 };
 
 type UseRealtimeOrdersOptions = {
+  eventTypes?: ReadonlyArray<"INSERT" | "UPDATE">;
   onOrderChange?: (event: RealtimeOrderEvent) => void | Promise<void>;
+  orderId?: string;
 };
 
 function normalizeOrderRow(row: Record<string, unknown> | null | undefined) {
@@ -54,8 +58,12 @@ function normalizeOrderRow(row: Record<string, unknown> | null | undefined) {
 }
 
 export function useRealtimeOrders({
+  eventTypes = defaultRealtimeEventTypes,
   onOrderChange,
+  orderId,
 }: UseRealtimeOrdersOptions = {}) {
+  const shouldListenToInserts = eventTypes.includes("INSERT");
+  const shouldListenToUpdates = eventTypes.includes("UPDATE");
   const hasSupabaseConfig = Boolean(
     process.env.NEXT_PUBLIC_SUPABASE_URL &&
       (process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
@@ -102,40 +110,51 @@ export function useRealtimeOrders({
       void onOrderChange?.(event);
     };
 
-    const channel = supabase
-      .channel("admin-orders-realtime")
-      .on(
+    const changeFilter = orderId ? `id=eq.${orderId}` : undefined;
+    const channel = supabase.channel(
+      orderId ? `customer-order-realtime-${orderId}` : "admin-orders-realtime",
+    );
+
+    if (shouldListenToInserts) {
+      channel.on(
         "postgres_changes",
         {
           event: "INSERT",
           schema: "public",
           table: "Order",
+          filter: changeFilter,
         },
         handlePayload,
-      )
-      .on(
+      );
+    }
+
+    if (shouldListenToUpdates) {
+      channel.on(
         "postgres_changes",
         {
           event: "UPDATE",
           schema: "public",
           table: "Order",
+          filter: changeFilter,
         },
         handlePayload,
-      )
-      .subscribe((status) => {
-        if (!isMounted) {
-          return;
-        }
+      );
+    }
 
-        setIsSubscribed(status === "SUBSCRIBED");
-        setError(status === "CHANNEL_ERROR" ? "Supabase Realtime subscription failed." : null);
-      });
+    channel.subscribe((status) => {
+      if (!isMounted) {
+        return;
+      }
+
+      setIsSubscribed(status === "SUBSCRIBED");
+      setError(status === "CHANNEL_ERROR" ? "Supabase Realtime subscription failed." : null);
+    });
 
     return () => {
       isMounted = false;
       void supabase.removeChannel(channel);
     };
-  }, [hasSupabaseConfig, onOrderChange]);
+  }, [hasSupabaseConfig, onOrderChange, orderId, shouldListenToInserts, shouldListenToUpdates]);
 
   return {
     isSubscribed,

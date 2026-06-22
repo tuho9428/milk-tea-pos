@@ -987,7 +987,7 @@ function BoardCardContent({
                 id={`cancel-order-description-${order.id}`}
                 className="text-sm leading-6 text-muted-foreground"
               >
-                This will update the order status to cancelled. Please select a
+                This will update the order status to canceled. Please select a
                 reason before continuing.
               </p>
             </div>

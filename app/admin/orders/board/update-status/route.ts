@@ -27,6 +27,7 @@ export async function POST(request: Request) {
   revalidatePath("/admin/orders");
   revalidatePath("/admin/orders/board");
   revalidatePath(`/admin/orders/${parsed.data.orderId}`);
+  revalidatePath(`/order/${parsed.data.orderId}`);
 
   return NextResponse.json({ ok: true });
 }
