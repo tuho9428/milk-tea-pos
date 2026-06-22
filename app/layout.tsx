@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { FloatingCartButton } from "@/app/floating-cart-button";
+import { Providers } from "@/app/providers";
 import { Toaster } from "sonner";
 import "./globals.css";
 
@@ -30,9 +31,11 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col text-foreground">
-        {children}
-        <FloatingCartButton />
-        <Toaster position="top-right" richColors closeButton />
+        <Providers>
+          {children}
+          <FloatingCartButton />
+          <Toaster position="top-right" richColors closeButton />
+        </Providers>
       </body>
     </html>
   );
