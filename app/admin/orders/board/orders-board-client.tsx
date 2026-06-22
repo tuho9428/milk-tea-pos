@@ -29,6 +29,10 @@ import { useRealtimeOrders, type RealtimeOrderEvent, type RealtimeOrderRow } fro
 
 export type BoardColumnStatus = "PENDING" | "MAKING" | "READY" | "COMPLETED";
 
+const allBoardColumnStatuses = ["PENDING", "MAKING", "READY", "COMPLETED"] as const satisfies readonly BoardColumnStatus[];
+const visibleColumnsStorageKey = "kitchen-board-visible-columns";
+const visibleColumnsChangeEvent = "kitchen-board-visible-columns-change";
+
 export type BoardOrder = {
   id: string;
   displayOrderNumber: string;
@@ -70,6 +74,141 @@ const cancellationReasons = [
   "Payment problem",
   "Other",
 ] as const;
+
+const columnPresets: Array<{
+  label: string;
+  description: string;
+  statuses: "all" | readonly BoardColumnStatus[];
+}> = [
+  {
+    label: "All Orders",
+    description: "Show every board column.",
+    statuses: "all",
+  },
+  {
+    label: "Kitchen View",
+    description: "Focus on new, making, and ready orders.",
+    statuses: ["PENDING", "MAKING", "READY"],
+  },
+  {
+    label: "Pickup View",
+    description: "Focus on ready and completed orders.",
+    statuses: ["READY", "COMPLETED"],
+  },
+];
+
+function isBoardColumnStatus(status: string): status is BoardColumnStatus {
+  return (allBoardColumnStatuses as readonly string[]).includes(status);
+}
+
+function createVisibleColumnsSnapshot(values: readonly unknown[]) {
+  const visibleStatuses = new Set<BoardColumnStatus>();
+
+  for (const value of values) {
+    if (typeof value === "string" && isBoardColumnStatus(value)) {
+      visibleStatuses.add(value);
+    }
+  }
+
+  return allBoardColumnStatuses.filter((status) => visibleStatuses.has(status)).join(",");
+}
+
+function getDefaultVisibleColumnsSnapshot() {
+  return allBoardColumnStatuses.join(",");
+}
+
+function normalizeVisibleColumnsSnapshot(value: string | null) {
+  if (value === null) {
+    return getDefaultVisibleColumnsSnapshot();
+  }
+
+  try {
+    const parsed = JSON.parse(value);
+
+    if (Array.isArray(parsed)) {
+      return createVisibleColumnsSnapshot(parsed);
+    }
+  } catch {
+    return getDefaultVisibleColumnsSnapshot();
+  }
+
+  return getDefaultVisibleColumnsSnapshot();
+}
+
+function getVisibleColumnsClientSnapshot() {
+  if (typeof window === "undefined") {
+    return getDefaultVisibleColumnsSnapshot();
+  }
+
+  return normalizeVisibleColumnsSnapshot(window.localStorage.getItem(visibleColumnsStorageKey));
+}
+
+function getVisibleColumnsServerSnapshot() {
+  return getDefaultVisibleColumnsSnapshot();
+}
+
+function subscribeToVisibleColumns(callback: () => void) {
+  function handleStorage(event: StorageEvent) {
+    if (event.key === visibleColumnsStorageKey) {
+      callback();
+    }
+  }
+
+  window.addEventListener("storage", handleStorage);
+  window.addEventListener(visibleColumnsChangeEvent, callback);
+
+  return () => {
+    window.removeEventListener("storage", handleStorage);
+    window.removeEventListener(visibleColumnsChangeEvent, callback);
+  };
+}
+
+function getVisibleStatusesFromSnapshot(snapshot: string) {
+  if (!snapshot) {
+    return [];
+  }
+
+  return snapshot.split(",").filter(isBoardColumnStatus);
+}
+
+function saveVisibleColumnStatuses(statuses: readonly BoardColumnStatus[]) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const selectedStatuses = new Set(statuses);
+  const orderedStatuses = allBoardColumnStatuses.filter((status) => selectedStatuses.has(status));
+
+  try {
+    window.localStorage.setItem(visibleColumnsStorageKey, JSON.stringify(orderedStatuses));
+  } catch (error) {
+    console.warn("Failed to save kitchen board column preference", error);
+  }
+
+  window.dispatchEvent(new Event(visibleColumnsChangeEvent));
+}
+
+function areStatusListsEqual(
+  leftStatuses: readonly BoardColumnStatus[],
+  rightStatuses: readonly BoardColumnStatus[],
+) {
+  return (
+    leftStatuses.length === rightStatuses.length &&
+    leftStatuses.every((status, index) => status === rightStatuses[index])
+  );
+}
+
+function getColumnFilterLabel(column: OrdersBoardClientProps["columns"][number]) {
+  if (column.status === "PENDING") {
+    return "New";
+  }
+
+  if (column.status === "MAKING") {
+    return "Making";
+  }
+
+  return column.title;
+}
 
 function formatTimestamp(dateInput: string) {
   return new Intl.DateTimeFormat("en-US", {
@@ -154,10 +293,6 @@ function getCancelTriggerClass() {
   );
 }
 
-function isBoardColumnStatus(status: string): status is BoardColumnStatus {
-  return status === "PENDING" || status === "MAKING" || status === "READY" || status === "COMPLETED";
-}
-
 function sortNewestFirst(orders: BoardOrder[]) {
   return [...orders].sort(
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
@@ -177,6 +312,11 @@ export function OrdersBoardClient({
   const [draggedOrderId, setDraggedOrderId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const notifiedOrderIds = useRef(new Set(initialOrders.map((order) => order.id)));
+  const visibleColumnsSnapshot = useSyncExternalStore(
+    subscribeToVisibleColumns,
+    getVisibleColumnsClientSnapshot,
+    getVisibleColumnsServerSnapshot,
+  );
   const isMounted = useSyncExternalStore(
     subscribeToHydration,
     getClientSnapshot,
@@ -196,6 +336,25 @@ export function OrdersBoardClient({
     }),
   );
   const columnStatuses = useMemo(() => new Set(columns.map((column) => column.status)), [columns]);
+  const orderedColumnStatuses = useMemo(() => columns.map((column) => column.status), [columns]);
+  const visibleColumnStatuses = useMemo(
+    () => getVisibleStatusesFromSnapshot(visibleColumnsSnapshot),
+    [visibleColumnsSnapshot],
+  );
+  const visibleColumnSet = useMemo(
+    () => new Set(visibleColumnStatuses),
+    [visibleColumnStatuses],
+  );
+  const visibleColumns = useMemo(
+    () => columns.filter((column) => visibleColumnSet.has(column.status)),
+    [columns, visibleColumnSet],
+  );
+  const boardGridClassName = cn(
+    "grid gap-4 overflow-x-auto",
+    visibleColumns.length >= 2 && "md:grid-cols-2",
+    visibleColumns.length >= 3 && "xl:grid-cols-3",
+    visibleColumns.length >= 4 && "xl:grid-cols-4",
+  );
 
   useEffect(() => {
     ordersRef.current = orders;
@@ -314,6 +473,32 @@ export function OrdersBoardClient({
     });
   }
 
+  function updateVisibleColumns(statuses: readonly BoardColumnStatus[]) {
+    const allowedStatuses = new Set(orderedColumnStatuses);
+    saveVisibleColumnStatuses(statuses.filter((status) => allowedStatuses.has(status)));
+  }
+
+  function toggleColumnVisibility(status: BoardColumnStatus) {
+    const nextStatuses = new Set(visibleColumnStatuses);
+
+    if (nextStatuses.has(status)) {
+      nextStatuses.delete(status);
+    } else {
+      nextStatuses.add(status);
+    }
+
+    updateVisibleColumns(orderedColumnStatuses.filter((columnStatus) => nextStatuses.has(columnStatus)));
+  }
+
+  function applyPreset(statuses: "all" | readonly BoardColumnStatus[]) {
+    if (statuses === "all") {
+      updateVisibleColumns(orderedColumnStatuses);
+      return;
+    }
+
+    updateVisibleColumns(statuses);
+  }
+
   function handleDragEnd(event: DragEndEvent) {
     const overId = event.over?.id;
     const orderId = event.active.id;
@@ -367,8 +552,85 @@ export function OrdersBoardClient({
         setDraggedOrderId(null);
       }}
     >
-      <section className="grid gap-4 overflow-x-auto xl:grid-cols-4">
-        {columns.map((column) => {
+      <section className="mb-4 space-y-4 rounded-[calc(var(--radius)*1.1)] border border-border/80 bg-card/70 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.45)]">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+          <div className="space-y-1">
+            <p className="eyebrow">Column Focus</p>
+            <h2 className="text-lg font-semibold tracking-[-0.02em] text-foreground">
+              Show columns
+            </h2>
+            <p className="text-sm leading-6 text-muted-foreground">
+              Keep all orders available while focusing the board for kitchen or pickup staff.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            {columnPresets.map((preset) => {
+              const presetStatuses =
+                preset.statuses === "all" ? orderedColumnStatuses : preset.statuses;
+              const isActive = areStatusListsEqual(visibleColumnStatuses, presetStatuses);
+
+              return (
+                <button
+                  key={preset.label}
+                  type="button"
+                  className={cn(
+                    buttonVariants({ variant: isActive ? "default" : "outline", size: "sm" }),
+                    "cursor-pointer",
+                  )}
+                  aria-pressed={isActive}
+                  title={preset.description}
+                  onClick={() => {
+                    applyPreset(preset.statuses);
+                  }}
+                >
+                  {preset.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          {columns.map((column) => {
+            const isVisible = visibleColumnSet.has(column.status);
+
+            return (
+              <button
+                key={column.status}
+                type="button"
+                className={cn(
+                  "inline-flex h-9 cursor-pointer items-center gap-2 rounded-full border px-3.5 text-sm font-medium transition-[background-color,border-color,color,box-shadow]",
+                  isVisible
+                    ? "border-primary/25 bg-primary-soft text-primary shadow-[0_8px_18px_hsl(var(--primary)/0.08)]"
+                    : "border-border bg-card text-muted-foreground hover:border-primary/20 hover:bg-secondary/70 hover:text-foreground",
+                )}
+                aria-pressed={isVisible}
+                onClick={() => {
+                  toggleColumnVisibility(column.status);
+                }}
+              >
+                <span
+                  className={cn(
+                    "size-2 rounded-full",
+                    isVisible ? "bg-primary" : "bg-muted-foreground/35",
+                  )}
+                  aria-hidden="true"
+                />
+                {getColumnFilterLabel(column)}
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
+      {visibleColumns.length === 0 ? (
+        <section className="rounded-[calc(var(--radius)*1.05)] border border-dashed border-border/90 bg-card/75 p-6 text-sm text-muted-foreground">
+          No columns selected. Choose a column or preset to show orders on the board.
+        </section>
+      ) : (
+        <section className={boardGridClassName}>
+          {visibleColumns.map((column) => {
           const columnOrders = ordersByStatus[column.status];
 
           return (
@@ -397,8 +659,9 @@ export function OrdersBoardClient({
               )}
             </DroppableColumn>
           );
-        })}
-      </section>
+          })}
+        </section>
+      )}
 
       <DragOverlay>
         {activeOrder ? <BoardCardContent order={activeOrder} isOverlay /> : null}
