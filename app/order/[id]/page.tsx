@@ -3,10 +3,9 @@ import { notFound } from "next/navigation";
 
 import { ClearCartOnLoad } from "@/app/order/[id]/clear-cart-on-load";
 import { RefreshUntilPaid } from "@/app/order/[id]/refresh-until-paid";
-import { Badge } from "@/components/ui/badge";
+import { OrderTrackingStatus, type CustomerOrderStatus } from "@/app/order/[id]/order-tracking-status";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { formatPrice, formatTaxRate } from "@/lib/format";
-import { formatPaymentStatusLabel, getPaymentStatusVariant } from "@/lib/payment";
 import { prisma } from "@/lib/prisma";
 import { getStripe } from "@/lib/stripe";
 import { cn } from "@/lib/utils";
@@ -155,9 +154,9 @@ export default async function OrderConfirmationPage({
                 Payment could not start. Please return to checkout and try again.
               </p>
             ) : null}
-            {paymentNotice === "cancelled" ? (
+            {paymentNotice === "canceled" ? (
               <p className="status-pill status-warning w-fit">
-                Payment was cancelled. Your pending order is still available.
+                Payment was canceled. Your pending order is still available.
               </p>
             ) : null}
 
@@ -168,28 +167,12 @@ export default async function OrderConfirmationPage({
                   #{order.displayOrderNumber}
                 </dd>
               </div>
-              <div className="soft-panel p-4">
-                <dt className="eyebrow">Status</dt>
-                <dd className="mt-2">
-                  <span className="status-pill status-warning">{order.status}</span>
-                </dd>
-              </div>
-              <div className="soft-panel p-4">
-                <dt className="eyebrow">Payment</dt>
-                <dd className="mt-2 flex flex-wrap items-center gap-2">
-                  <Badge variant={getPaymentStatusVariant(order.paymentStatus)}>
-                    {formatPaymentStatusLabel(order.paymentStatus)}
-                  </Badge>
-                  {order.paidAt ? (
-                    <span className="text-xs text-muted-foreground">
-                      Paid {new Intl.DateTimeFormat("en-US", {
-                        dateStyle: "medium",
-                        timeStyle: "short",
-                      }).format(order.paidAt)}
-                    </span>
-                  ) : null}
-                </dd>
-              </div>
+              <OrderTrackingStatus
+                initialPaidAt={order.paidAt?.toISOString() ?? null}
+                initialPaymentStatus={order.paymentStatus}
+                initialStatus={order.status as CustomerOrderStatus}
+                orderId={order.id}
+              />
               <div className="soft-panel p-4">
                 <dt className="eyebrow">Phone</dt>
                 <dd className="mt-2 text-sm text-foreground">{order.phone}</dd>

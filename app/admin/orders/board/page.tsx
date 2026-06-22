@@ -3,6 +3,7 @@ import Link from "next/link";
 import { OrderDetailContent } from "@/app/admin/orders/order-detail-content";
 import { getAdminOrderDetail } from "@/app/admin/orders/order-detail-data";
 import { OrderModalShell } from "@/app/admin/orders/order-modal-shell";
+import { serializeBoardOrder } from "@/app/admin/orders/order-serializers";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { prisma } from "@/lib/prisma";
@@ -57,6 +58,7 @@ export default async function AdminOrdersBoardPage({
   const activeOrderId = resolvedSearchParams?.order?.trim() || null;
   const orders = await prisma.order.findMany({
     where: {
+      paymentStatus: "PAID",
       status: {
         in: boardColumns.map((column) => column.status),
       },
@@ -90,20 +92,8 @@ export default async function AdminOrdersBoardPage({
     : null;
 
   const serializedOrders: BoardOrder[] = orders.map((order) => ({
-    id: order.id,
-    displayOrderNumber: order.displayOrderNumber,
-    customerName: order.customerName,
+    ...serializeBoardOrder(order),
     status: order.status as BoardColumnStatus,
-    paymentStatus: order.paymentStatus,
-    paymentProvider: order.paymentProvider,
-    paidAt: order.paidAt ? order.paidAt.toISOString() : null,
-    total: Number(order.total),
-    createdAt: order.createdAt.toISOString(),
-    items: order.items.map((item) => ({
-      quantity: item.quantity,
-      menuItemName: item.menuItem?.name ?? null,
-      modifiers: item.modifiers.map((modifier) => modifier.name),
-    })),
   }));
 
   return (

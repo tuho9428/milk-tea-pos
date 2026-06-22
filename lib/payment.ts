@@ -3,7 +3,7 @@ export const paymentStatuses = [
   "PAID",
   "FAILED",
   "REFUNDED",
-  "CANCELLED",
+  "CANCELED",
   "EXPIRED",
 ] as const;
 
@@ -14,7 +14,7 @@ const paymentStatusLabels: Record<PaymentStatus, string> = {
   PAID: "Paid",
   FAILED: "Payment failed",
   REFUNDED: "Refunded",
-  CANCELLED: "Payment cancelled",
+  CANCELED: "Payment canceled",
   EXPIRED: "Payment expired",
 };
 
@@ -23,7 +23,7 @@ const paymentStatusVariants: Record<PaymentStatus, "default" | "primary" | "succ
   PAID: "success",
   FAILED: "destructive",
   REFUNDED: "default",
-  CANCELLED: "destructive",
+  CANCELED: "destructive",
   EXPIRED: "destructive",
 };
 
