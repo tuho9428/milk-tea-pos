@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { formatPaymentStatusLabel, getPaymentStatusVariant, type PaymentStatus } from "@/lib/payment";
@@ -20,11 +20,6 @@ type TrackingState = {
   paidAt: string | null;
   paymentStatus: PaymentStatus;
   status: CustomerOrderStatus;
-};
-
-type OrderStatusSnapshot = TrackingState & {
-  id: string;
-  updatedAt: string;
 };
 
 const customerOrderEventTypes = ["UPDATE"] as const;
@@ -120,18 +115,6 @@ function formatPaidAt(paidAt: string) {
   }).format(new Date(paidAt));
 }
 
-async function fetchOrderStatusSnapshot(orderId: string) {
-  const response = await fetch(`/api/orders/${encodeURIComponent(orderId)}/status`, {
-    cache: "no-store",
-  });
-
-  if (!response.ok) {
-    throw new Error("Unable to load order status.");
-  }
-
-  return (await response.json()) as OrderStatusSnapshot;
-}
-
 export function OrderTrackingStatus({
   initialPaidAt,
   initialPaymentStatus,
@@ -179,35 +162,6 @@ export function OrderTrackingStatus({
     onOrderChange: handleOrderChange,
     orderId,
   });
-
-  useEffect(() => {
-    let isMounted = true;
-
-    async function syncOrderStatus() {
-      try {
-        const snapshot = await fetchOrderStatusSnapshot(orderId);
-
-        if (!isMounted || snapshot.id !== orderId) {
-          return;
-        }
-
-        patchTrackingState({
-          paidAt: snapshot.paidAt,
-          paymentStatus: snapshot.paymentStatus,
-          status: snapshot.status,
-        });
-      } catch {
-        // Keep the current customer-facing state if a background sync misses.
-      }
-    }
-
-    const intervalId = window.setInterval(syncOrderStatus, 3000);
-
-    return () => {
-      isMounted = false;
-      window.clearInterval(intervalId);
-    };
-  }, [orderId, patchTrackingState]);
 
   return (
     <>

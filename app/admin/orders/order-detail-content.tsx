@@ -70,6 +70,12 @@ export function OrderDetailContent({
               <Badge variant={getPaymentStatusVariant(order.paymentStatus)}>
                 {formatPaymentStatusLabel(order.paymentStatus)}
               </Badge>
+              <Badge
+                variant={order.customerEmail ? "success" : "warning"}
+                title={order.customerEmail ?? "Stripe has not returned a customer email yet."}
+              >
+                {order.customerEmail ? "Email captured" : "Email pending"}
+              </Badge>
             </div>
           </div>
         </CardHeader>
@@ -146,19 +152,25 @@ export function OrderDetailContent({
                 {formatTimestamp(order.createdAt)}
               </p>
             </div>
-            <div className="soft-panel p-4">
-              <p className="eyebrow">Status</p>
-              <div className="mt-2 flex flex-wrap items-center gap-3">
-                <Badge variant={statusVariants[order.status]}>
-                  {formatStatusLabel(order.status)}
-                </Badge>
-                <Badge variant={getPaymentStatusVariant(order.paymentStatus)}>
-                  {formatPaymentStatusLabel(order.paymentStatus)}
-                </Badge>
-                <form action={updateOrderStatusAction} className="flex flex-wrap items-center gap-2">
-                  <input type="hidden" name="orderId" value={order.id} />
-                  <select
-                    name="status"
+              <div className="soft-panel p-4">
+                <p className="eyebrow">Status</p>
+                <div className="mt-2 flex flex-wrap items-center gap-3">
+                  <Badge variant={statusVariants[order.status]}>
+                    {formatStatusLabel(order.status)}
+                  </Badge>
+                  <Badge variant={getPaymentStatusVariant(order.paymentStatus)}>
+                    {formatPaymentStatusLabel(order.paymentStatus)}
+                  </Badge>
+                  <Badge
+                    variant={order.customerEmail ? "success" : "warning"}
+                    title={order.customerEmail ?? "Stripe has not returned a customer email yet."}
+                  >
+                    {order.customerEmail ? "Email captured" : "Email pending"}
+                  </Badge>
+                  <form action={updateOrderStatusAction} className="flex flex-wrap items-center gap-2">
+                    <input type="hidden" name="orderId" value={order.id} />
+                    <select
+                      name="status"
                     defaultValue={isEditableStatus(order.status) ? order.status : "PENDING"}
                     className="field-select h-10 pr-10"
                     aria-label="Update order status"
@@ -174,6 +186,15 @@ export function OrderDetailContent({
                   </button>
                 </form>
               </div>
+              {order.customerEmail ? (
+                <p className="mt-3 text-xs text-muted-foreground">
+                  Customer email: {order.customerEmail}
+                </p>
+              ) : (
+                <p className="mt-3 text-xs text-muted-foreground">
+                  Customer email has not been captured yet.
+                </p>
+              )}
               <p className="mt-3 text-xs text-muted-foreground">
                 {order.paidAt
                   ? `Paid on ${formatTimestamp(order.paidAt)} via ${order.paymentProvider}`

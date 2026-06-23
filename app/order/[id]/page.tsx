@@ -1,11 +1,17 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import Stripe from "stripe";
 
 import { ClearCartOnLoad } from "@/app/order/[id]/clear-cart-on-load";
 import { RefreshUntilPaid } from "@/app/order/[id]/refresh-until-paid";
 import { OrderTrackingStatus, type CustomerOrderStatus } from "@/app/order/[id]/order-tracking-status";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { formatPrice, formatTaxRate } from "@/lib/format";
+import {
+  ensureOrderPublicToken,
+  updateOrderStripeReceiptFields,
+} from "@/lib/order-public-fields";
+import { queueOrderCreatedNotification } from "@/lib/order-created-notification";
 import { prisma } from "@/lib/prisma";
 import { getStripe } from "@/lib/stripe";
 import { cn } from "@/lib/utils";
@@ -22,12 +28,35 @@ type OrderConfirmationPageProps = {
 
 export const dynamic = "force-dynamic";
 
-function getSessionPaymentIntentId(session: Awaited<ReturnType<ReturnType<typeof getStripe>["checkout"]["sessions"]["retrieve"]>>) {
+function getSessionPaymentIntentId(session: Stripe.Checkout.Session) {
   return typeof session.payment_intent === "string" ? session.payment_intent : null;
 }
 
-function getSessionAmountTotal(session: Awaited<ReturnType<ReturnType<typeof getStripe>["checkout"]["sessions"]["retrieve"]>>) {
+function getSessionAmountTotal(session: Stripe.Checkout.Session) {
   return typeof session.amount_total === "number" ? session.amount_total / 100 : null;
+}
+
+function getSessionCustomerEmail(session: Stripe.Checkout.Session) {
+  return session.customer_details?.email ?? session.customer_email ?? null;
+}
+
+async function getReceiptUrl(stripe: Stripe, session: Stripe.Checkout.Session) {
+  const paymentIntentId = getSessionPaymentIntentId(session);
+
+  if (!paymentIntentId) {
+    return null;
+  }
+
+  const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId, {
+    expand: ["latest_charge"],
+  });
+  const latestCharge = paymentIntent.latest_charge;
+
+  if (latestCharge && typeof latestCharge === "object" && "receipt_url" in latestCharge) {
+    return latestCharge.receipt_url ?? null;
+  }
+
+  return null;
 }
 
 async function reconcileSuccessfulStripeCheckout(orderId: string, sessionId: string | undefined) {
@@ -41,10 +70,13 @@ async function reconcileSuccessfulStripeCheckout(orderId: string, sessionId: str
       id: true,
       paymentStatus: true,
       stripeCheckoutSessionId: true,
+      customerName: true,
+      displayOrderNumber: true,
+      total: true,
     },
   });
 
-  if (!order || order.paymentStatus === "PAID") {
+  if (!order) {
     return;
   }
 
@@ -55,20 +87,21 @@ async function reconcileSuccessfulStripeCheckout(orderId: string, sessionId: str
     session = await stripe.checkout.sessions.retrieve(sessionId);
   } catch (error) {
     console.log(
-      "[stripe:success-page] checkout session reconciliation failed",
+      "[stripe:order-page] checkout session reconciliation failed",
       error instanceof Error ? error.message : error,
     );
     return;
   }
 
   const sessionOrderId = session.metadata?.orderId || session.client_reference_id;
+  const customerEmail = getSessionCustomerEmail(session);
 
   if (
     session.payment_status !== "paid" ||
     sessionOrderId !== order.id ||
     order.stripeCheckoutSessionId !== session.id
   ) {
-    console.log("[stripe:success-page] checkout session not ready for reconciliation", {
+    console.log("[stripe:order-page] checkout session not ready for reconciliation", {
       orderId: order.id,
       sessionId: session.id,
       sessionOrderId,
@@ -77,18 +110,36 @@ async function reconcileSuccessfulStripeCheckout(orderId: string, sessionId: str
     return;
   }
 
-  await prisma.order.update({
-    where: { id: order.id },
-    data: {
-      paymentStatus: "PAID",
-      stripePaymentIntentId: getSessionPaymentIntentId(session),
-      paymentAmount: getSessionAmountTotal(session) ?? undefined,
-      paymentCurrency: session.currency ?? "usd",
-      paidAt: new Date(),
-    },
-  });
+  if (order.paymentStatus !== "PAID") {
+    await prisma.order.update({
+      where: { id: order.id },
+      data: {
+        paymentStatus: "PAID",
+        stripePaymentIntentId: getSessionPaymentIntentId(session),
+        paymentAmount: getSessionAmountTotal(session) ?? undefined,
+        paymentCurrency: session.currency ?? "usd",
+        paidAt: new Date(),
+      },
+    });
+  }
 
-  console.log("[stripe:success-page] order payment reconciled", {
+  if (customerEmail) {
+    console.log("[stripe:order-page] customer email captured", {
+      orderId: order.id,
+      email: customerEmail,
+    });
+  }
+
+  await updateOrderStripeReceiptFields({
+    customerEmail,
+    orderId: order.id,
+    receiptUrl: await getReceiptUrl(stripe, session),
+    stripeCheckoutSessionId: session.id,
+  });
+  await ensureOrderPublicToken(order.id);
+  await queueOrderCreatedNotification(order);
+
+  console.log("[stripe:order-page] order payment reconciled", {
     orderId: order.id,
     sessionId: session.id,
   });

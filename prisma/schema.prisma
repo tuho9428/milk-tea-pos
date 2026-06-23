@@ -13,11 +13,12 @@ datasource db {
 }
 
 model StoreSettings {
-  id        String   @id
-  storeName String?
-  taxRate   Decimal  @db.Decimal(5, 4)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                String   @id
+  storeName         String?
+  taxRate           Decimal  @db.Decimal(5, 4)
+  orderEmailsEnabled Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 }
 
 model Category {
@@ -114,12 +115,16 @@ model Order {
   displayOrderNumber  String
   displayOrderDateKey String
   customerName        String
+  customerEmail       String?     @map("customer_email")
   phone               String
   status              OrderStatus @default(PENDING)
   paymentStatus       PaymentStatus @default(PENDING)
   paymentProvider     PaymentProvider @default(STRIPE)
+  publicToken         String?     @unique @map("public_token")
   stripeCheckoutSessionId String?   @unique
   stripePaymentIntentId String?    @unique
+  receiptUrl          String?     @map("receipt_url")
+  orderEmailSentAt    DateTime?   @map("order_email_sent_at")
   paymentAmount       Decimal     @default(0) @db.Decimal(10, 2)
   paymentCurrency     String      @default("usd")
   paidAt              DateTime?

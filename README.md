@@ -50,7 +50,7 @@ This project is built around two sides of the product:
 - Kanban-style orders board for kitchen and fulfillment workflow
 - Menu management for categories and items
 - Modifier template management for reusable drink customization
-- Store settings with configurable tax rate
+- Store settings with configurable tax rate and transactional email toggle
 - Intercepted modal routes for menu item and admin order detail views
 
 ### Data Model
@@ -103,6 +103,9 @@ STRIPE_SECRET_KEY=sk_test_...
 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...
 STRIPE_WEBHOOK_SECRET=whsec_...
 NEXT_PUBLIC_APP_URL=http://localhost:3000
+RESEND_API_KEY=re_...
+RESEND_FROM_EMAIL="Milk Tea POS <orders@your-domain.com>"
+ORDER_EMAILS_ENABLED=true
 ```
 
 Notes:
@@ -111,6 +114,11 @@ Notes:
 - Card details are handled by Stripe, not stored in this app.
 - For local webhook testing, forward events with the Stripe CLI to `/api/webhooks/stripe`.
 - `NEXT_PUBLIC_APP_URL` should point at your local or deployed app base URL.
+- Stripe Checkout collects the customer email on the hosted payment page.
+- Successful payments return to `/order/[id]?payment=success&session_id={CHECKOUT_SESSION_ID}`.
+- The order page links customers to `/status/[public_token]` and shows payment status as Stripe confirms it.
+- `RESEND_API_KEY` and `RESEND_FROM_EMAIL` enable transactional order confirmation emails through Resend. These emails are order receipts only, not marketing.
+- `ORDER_EMAILS_ENABLED` is a global override for transactional order emails. You can also toggle order emails from `/admin/settings`.
 
 ### Install Dependencies
 

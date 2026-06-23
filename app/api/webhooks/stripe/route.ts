@@ -4,6 +4,11 @@ import { revalidatePath } from "next/cache";
 
 import { prisma } from "@/lib/prisma";
 import { getStripe } from "@/lib/stripe";
+import {
+  ensureOrderPublicToken,
+  updateOrderStripeReceiptFields,
+} from "@/lib/order-public-fields";
+import { queueOrderCreatedNotification } from "@/lib/order-created-notification";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -23,7 +28,11 @@ function getSessionOrderId(session: Stripe.Checkout.Session) {
 }
 
 function getPaymentIntentId(session: Stripe.Checkout.Session) {
-  return typeof session.payment_intent === "string" ? session.payment_intent : null;
+  if (typeof session.payment_intent === "string") {
+    return session.payment_intent;
+  }
+
+  return session.payment_intent?.id ?? null;
 }
 
 function getAmountTotal(session: Stripe.Checkout.Session) {
@@ -46,6 +55,32 @@ function getPaymentIntentAmount(paymentIntent: Stripe.PaymentIntent) {
   return null;
 }
 
+async function getReceiptUrlFromSession(
+  stripe: Stripe,
+  session: Stripe.Checkout.Session,
+) {
+  const paymentIntentId = getPaymentIntentId(session);
+
+  if (!paymentIntentId) {
+    return null;
+  }
+
+  const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId, {
+    expand: ["latest_charge"],
+  });
+  const latestCharge = paymentIntent.latest_charge;
+
+  if (latestCharge && typeof latestCharge === "object" && "receipt_url" in latestCharge) {
+    return latestCharge.receipt_url ?? null;
+  }
+
+  return null;
+}
+
+function getSessionCustomerEmail(session: Stripe.Checkout.Session) {
+  return session.customer_details?.email ?? session.customer_email ?? null;
+}
+
 async function revalidateOrderPaths(orderId: string) {
   revalidatePath(`/order/${orderId}`);
   revalidatePath("/admin/orders");
@@ -57,13 +92,18 @@ async function updateOrderPaymentStatus(params: {
   orderId: string;
   session: Stripe.Checkout.Session;
   paymentStatus: "PAID" | "FAILED" | "EXPIRED";
+  stripe: Stripe;
 }) {
+  const customerEmail = getSessionCustomerEmail(params.session);
   const order = await prisma.order.findUnique({
     where: { id: params.orderId },
     select: {
+      customerName: true,
+      displayOrderNumber: true,
       id: true,
       paymentStatus: true,
       stripeCheckoutSessionId: true,
+      total: true,
     },
   });
 
@@ -74,6 +114,20 @@ async function updateOrderPaymentStatus(params: {
 
   if (order.paymentStatus === "PAID") {
     console.log("[stripe:webhook] order already paid", order.id);
+    if (customerEmail) {
+      console.log("[stripe:webhook] customer email captured", {
+        orderId: order.id,
+        email: customerEmail,
+      });
+    }
+    await updateOrderStripeReceiptFields({
+      customerEmail,
+      orderId: order.id,
+      receiptUrl: await getReceiptUrlFromSession(params.stripe, params.session),
+      stripeCheckoutSessionId: params.session.id,
+    });
+    await ensureOrderPublicToken(order.id);
+    await queueOrderCreatedNotification(order);
     await revalidateOrderPaths(order.id);
     return;
   }
@@ -98,6 +152,25 @@ async function updateOrderPaymentStatus(params: {
       paidAt: params.paymentStatus === "PAID" ? new Date() : null,
     },
   });
+
+  await updateOrderStripeReceiptFields({
+    customerEmail,
+    orderId: order.id,
+    receiptUrl: await getReceiptUrlFromSession(params.stripe, params.session),
+    stripeCheckoutSessionId: params.session.id,
+  });
+  await ensureOrderPublicToken(order.id);
+
+  if (customerEmail) {
+    console.log("[stripe:webhook] customer email captured", {
+      orderId: order.id,
+      email: customerEmail,
+    });
+  }
+
+  if (params.paymentStatus === "PAID") {
+    await queueOrderCreatedNotification(order);
+  }
 
   console.log("[stripe:webhook] order payment updated", {
     orderId: order.id,
@@ -211,6 +284,7 @@ export async function POST(request: NextRequest) {
           orderId,
           session,
           paymentStatus: "PAID",
+          stripe,
         });
         break;
       }
@@ -233,6 +307,7 @@ export async function POST(request: NextRequest) {
           orderId,
           session,
           paymentStatus: event.type === "checkout.session.expired" ? "EXPIRED" : "FAILED",
+          stripe,
         });
         break;
       }
