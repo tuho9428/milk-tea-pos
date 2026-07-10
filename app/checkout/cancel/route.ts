@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
   const orderId = request.nextUrl.searchParams.get("orderId")?.trim();
 
   if (!orderId) {
-    return NextResponse.redirect(new URL("/checkout?payment=cancelled", getAppUrl()));
+    return NextResponse.redirect(new URL("/checkout?payment=canceled", getAppUrl()));
   }
 
   const order = await prisma.order.findUnique({
@@ -32,14 +32,14 @@ export async function GET(request: NextRequest) {
   });
 
   if (!order) {
-    return NextResponse.redirect(new URL("/checkout?payment=cancelled", getAppUrl()));
+    return NextResponse.redirect(new URL("/checkout?payment=canceled", getAppUrl()));
   }
 
   if (order.paymentStatus !== "PAID") {
     await prisma.order.update({
       where: { id: order.id },
       data: {
-        paymentStatus: "CANCELLED",
+        paymentStatus: "CANCELED",
         paidAt: null,
       },
     });
@@ -52,6 +52,6 @@ export async function GET(request: NextRequest) {
   revalidatePath(`/admin/orders/${order.id}`);
 
   return NextResponse.redirect(
-    new URL(`/checkout?payment=cancelled&orderId=${encodeURIComponent(order.id)}`, getAppUrl()),
+    new URL(`/checkout?payment=canceled&orderId=${encodeURIComponent(order.id)}`, getAppUrl()),
   );
 }

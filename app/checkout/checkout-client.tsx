@@ -83,9 +83,9 @@ export function CheckoutClient({ taxRate }: CheckoutClientProps) {
               Enter customer details and place this cart as a real order. Payment is securely handled by Stripe Checkout.
             </CardDescription>
           </div>
-          {paymentNotice === "cancelled" ? (
+          {paymentNotice === "canceled" ? (
             <p className="status-pill status-warning w-fit">
-              Payment cancelled. Your pending order can be resumed below.
+              Payment canceled. Your pending order can be resumed below.
             </p>
           ) : null}
           {paymentNotice === "failed" ? (
