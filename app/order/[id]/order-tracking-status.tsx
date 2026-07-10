@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { formatPaymentStatusLabel, getPaymentStatusVariant, type PaymentStatus } from "@/lib/payment";
@@ -20,6 +20,11 @@ type TrackingState = {
   paidAt: string | null;
   paymentStatus: PaymentStatus;
   status: CustomerOrderStatus;
+};
+
+type OrderStatusSnapshot = TrackingState & {
+  id: string;
+  updatedAt: string;
 };
 
 const customerOrderEventTypes = ["UPDATE"] as const;
@@ -115,6 +120,36 @@ function formatPaidAt(paidAt: string) {
   }).format(new Date(paidAt));
 }
 
+function isOrderStatusSnapshot(value: unknown): value is OrderStatusSnapshot {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const snapshot = value as Partial<OrderStatusSnapshot>;
+
+  return (
+    typeof snapshot.id === "string" &&
+    typeof snapshot.status === "string" &&
+    typeof snapshot.paymentStatus === "string" &&
+    typeof snapshot.updatedAt === "string" &&
+    (typeof snapshot.paidAt === "string" || snapshot.paidAt === null)
+  );
+}
+
+async function fetchOrderStatusSnapshot(orderId: string) {
+  const response = await fetch(`/api/orders/${orderId}/status`, {
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    return null;
+  }
+
+  const payload: unknown = await response.json();
+
+  return isOrderStatusSnapshot(payload) ? payload : null;
+}
+
 export function OrderTrackingStatus({
   initialPaidAt,
   initialPaymentStatus,
@@ -162,6 +197,39 @@ export function OrderTrackingStatus({
     onOrderChange: handleOrderChange,
     orderId,
   });
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function refreshStatus() {
+      try {
+        const snapshot = await fetchOrderStatusSnapshot(orderId);
+
+        if (!isMounted || !snapshot) {
+          return;
+        }
+
+        patchTrackingState({
+          paidAt: snapshot.paidAt,
+          paymentStatus: snapshot.paymentStatus,
+          status: snapshot.status,
+        });
+      } catch (error) {
+        console.warn(
+          "Failed to refresh order tracking status",
+          error instanceof Error ? error.message : error,
+        );
+      }
+    }
+
+    void refreshStatus();
+    const intervalId = window.setInterval(refreshStatus, 3000);
+
+    return () => {
+      isMounted = false;
+      window.clearInterval(intervalId);
+    };
+  }, [orderId, patchTrackingState]);
 
   return (
     <>
