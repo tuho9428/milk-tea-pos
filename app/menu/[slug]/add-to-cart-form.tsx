@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { ArrowRight } from "lucide-react";
 
 import { buttonVariants } from "@/components/ui/button-variants";
 import type { CartItem } from "@/lib/cart";
@@ -32,6 +33,7 @@ type AddToCartFormProps = {
   soldOut: boolean;
   afterAdd?: "cart" | "menu";
   showCartLink?: boolean;
+  showQuickCheckout?: boolean;
 };
 
 function getSelectionLimit(group: ModifierGroupView) {
@@ -66,6 +68,7 @@ export function AddToCartForm({
   soldOut,
   afterAdd = "cart",
   showCartLink = true,
+  showQuickCheckout = false,
 }: AddToCartFormProps) {
   const router = useRouter();
   const [quantity, setQuantity] = useState(1);
@@ -73,6 +76,7 @@ export function AddToCartForm({
     getInitialSelections(groups),
   );
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isQuickCheckoutPending, setIsQuickCheckoutPending] = useState(false);
 
   const selectedModifiers = groups.flatMap((group) => {
     const selectedIds = selectedByGroup[group.id] ?? [];
@@ -120,7 +124,17 @@ export function AddToCartForm({
     setErrorMessage(null);
   }
 
-  function handleAddToCart() {
+  function buildCartItem() {
+    return {
+      menuItemId: menuItem.menuItemId,
+      name: menuItem.name,
+      quantity,
+      basePrice: menuItem.basePrice,
+      selectedModifiers,
+    } satisfies CartItem;
+  }
+
+  function validateSelections() {
     const missingRequiredGroup = groups.find((group) => {
       if (!group.required) {
         return false;
@@ -131,18 +145,25 @@ export function AddToCartForm({
 
     if (missingRequiredGroup) {
       setErrorMessage(`Please choose at least one option for ${missingRequiredGroup.name}.`);
+      return false;
+    }
+
+    return true;
+  }
+
+  function addCurrentItemToStoredCart() {
+    const cartItem = buildCartItem();
+
+    addToStoredCart(cartItem);
+    return cartItem;
+  }
+
+  function handleAddToCart() {
+    if (!validateSelections()) {
       return;
     }
 
-    const cartItem: CartItem = {
-      menuItemId: menuItem.menuItemId,
-      name: menuItem.name,
-      quantity,
-      basePrice: menuItem.basePrice,
-      selectedModifiers,
-    };
-
-    addToStoredCart(cartItem);
+    addCurrentItemToStoredCart();
 
     if (afterAdd === "menu") {
       router.replace("/menu");
@@ -150,6 +171,16 @@ export function AddToCartForm({
     }
 
     router.push("/cart");
+  }
+
+  function handleQuickCheckout() {
+    if (!validateSelections() || isQuickCheckoutPending) {
+      return;
+    }
+
+    setIsQuickCheckoutPending(true);
+    addCurrentItemToStoredCart();
+    router.push("/checkout");
   }
 
   return (
@@ -181,15 +212,15 @@ export function AddToCartForm({
                       type="button"
                       disabled={isDisabled}
                       onClick={() => toggleOption(group, option.id)}
-                    className={cn(
-                      "flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left text-sm transition",
-                      isSelected
-                        ? "border-primary/22 bg-primary-soft text-primary hover:bg-primary/50"
-                        : "border-border bg-card text-foreground hover:bg-primary/5 hover:border-primary/25",
-                      isDisabled &&
+                      className={cn(
+                        "flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left text-sm transition",
+                        isSelected
+                          ? "border-primary/22 bg-primary-soft text-primary hover:bg-primary/50"
+                          : "border-border bg-card text-foreground hover:bg-primary/5 hover:border-primary/25",
+                        isDisabled &&
                         "cursor-not-allowed border-border/70 bg-muted/45 text-muted-foreground opacity-70 hover:bg-muted/45",
-                    )}
-                  >
+                      )}
+                    >
                       <span className="font-medium">{option.name}</span>
                       <span className="text-muted-foreground">
                         {option.priceDelta === 0
@@ -258,6 +289,17 @@ export function AddToCartForm({
         </div>
 
         <div className="flex flex-wrap gap-3">
+          {showQuickCheckout ? (
+            <button
+              type="button"
+              onClick={handleQuickCheckout}
+              disabled={soldOut || isQuickCheckoutPending}
+              className={cn(buttonVariants({ variant: "outline", size: "lg" }))}
+            >
+              <ArrowRight aria-hidden="true" />
+              {isQuickCheckoutPending ? "Opening Checkout..." : "Checkout Now"}
+            </button>
+          ) : null}
           <button
             type="button"
             onClick={handleAddToCart}

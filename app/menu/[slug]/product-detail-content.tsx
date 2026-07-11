@@ -98,6 +98,7 @@ export function ProductDetailContent({
         soldOut={drink.soldOut}
         afterAdd={mode === "modal" ? "menu" : "cart"}
         showCartLink={mode !== "modal"}
+        showQuickCheckout={mode === "modal"}
       />
     </section>
   );

@@ -9,6 +9,7 @@ import { prisma } from "@/lib/prisma";
 import { getStoreTaxRate } from "@/lib/store-settings";
 import { calculateOrderPricing } from "@/lib/tax";
 import { getStripe } from "@/lib/stripe";
+import { ensureOrderPublicToken } from "@/lib/order-public-fields";
 
 const checkoutSchema = z.object({
   customerName: z.string().trim().min(1, "Customer name is required."),
@@ -364,6 +365,8 @@ async function createStripePaymentForOrder(order: {
   tax: number;
   items: StripeLineItemSource[];
 }) {
+  await ensureOrderPublicToken(order.id);
+
   const session = await createStripeCheckoutSessionForOrder(order);
 
   await prisma.order.update({
@@ -459,6 +462,12 @@ export async function createOrderAction(
     });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      console.log("[checkout] prisma error while creating Stripe checkout", {
+        code: error.code,
+        message: error.message,
+        meta: error.meta,
+      });
+
       if (currentOrder) {
         return createCheckoutActionState(
           "error",

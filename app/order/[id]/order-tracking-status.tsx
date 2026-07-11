@@ -120,16 +120,34 @@ function formatPaidAt(paidAt: string) {
   }).format(new Date(paidAt));
 }
 
+function isOrderStatusSnapshot(value: unknown): value is OrderStatusSnapshot {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const snapshot = value as Partial<OrderStatusSnapshot>;
+
+  return (
+    typeof snapshot.id === "string" &&
+    typeof snapshot.status === "string" &&
+    typeof snapshot.paymentStatus === "string" &&
+    typeof snapshot.updatedAt === "string" &&
+    (typeof snapshot.paidAt === "string" || snapshot.paidAt === null)
+  );
+}
+
 async function fetchOrderStatusSnapshot(orderId: string) {
-  const response = await fetch(`/api/orders/${encodeURIComponent(orderId)}/status`, {
+  const response = await fetch(`/api/orders/${orderId}/status`, {
     cache: "no-store",
   });
 
   if (!response.ok) {
-    throw new Error("Unable to load order status.");
+    return null;
   }
 
-  return (await response.json()) as OrderStatusSnapshot;
+  const payload: unknown = await response.json();
+
+  return isOrderStatusSnapshot(payload) ? payload : null;
 }
 
 export function OrderTrackingStatus({
@@ -183,11 +201,11 @@ export function OrderTrackingStatus({
   useEffect(() => {
     let isMounted = true;
 
-    async function syncOrderStatus() {
+    async function refreshStatus() {
       try {
         const snapshot = await fetchOrderStatusSnapshot(orderId);
 
-        if (!isMounted || snapshot.id !== orderId) {
+        if (!isMounted || !snapshot) {
           return;
         }
 
@@ -196,12 +214,16 @@ export function OrderTrackingStatus({
           paymentStatus: snapshot.paymentStatus,
           status: snapshot.status,
         });
-      } catch {
-        // Keep the current customer-facing state if a background sync misses.
+      } catch (error) {
+        console.warn(
+          "Failed to refresh order tracking status",
+          error instanceof Error ? error.message : error,
+        );
       }
     }
 
-    const intervalId = window.setInterval(syncOrderStatus, 3000);
+    void refreshStatus();
+    const intervalId = window.setInterval(refreshStatus, 3000);
 
     return () => {
       isMounted = false;
